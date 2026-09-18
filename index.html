@@ -2,12 +2,35 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BrevetTrack</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <meta name="theme-color" content="#2563eb">
+
+    <meta
+        name="apple-mobile-web-app-capable"
+        content="yes"
+    >
+
+    <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="default"
+    >
+
+    <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
+
+    <title>BrevetTrack</title>
 </head>
 
 <body>
+
+<!-- ========================= -->
+<!-- CONNEXION -->
+<!-- ========================= -->
 
 <div id="auth-screen">
 
@@ -18,26 +41,48 @@
             <span>BrevetTrack</span>
         </div>
 
-        <h1 id="auth-title">Connexion</h1>
+        <h1 id="auth-title">
+            Connexion
+        </h1>
 
-        <p id="auth-subtitle" class="auth-subtitle">
+        <p
+            id="auth-subtitle"
+            class="auth-subtitle"
+        >
             Connecte-toi à ton espace BrevetTrack.
         </p>
 
         <div class="auth-tabs">
-            <button id="login-tab" class="auth-tab active">
+
+            <button
+                id="login-tab"
+                class="auth-tab active"
+                type="button"
+            >
                 Connexion
             </button>
 
-            <button id="signup-tab" class="auth-tab">
+            <button
+                id="signup-tab"
+                class="auth-tab"
+                type="button"
+            >
                 Créer un compte
             </button>
+
         </div>
+
 
         <form id="auth-form">
 
-            <div id="name-field" class="auth-field hidden">
-                <label for="auth-name">Prénom</label>
+            <div
+                id="name-field"
+                class="auth-field hidden"
+            >
+
+                <label for="auth-name">
+                    Prénom
+                </label>
 
                 <input
                     id="auth-name"
@@ -45,10 +90,15 @@
                     placeholder="Ton prénom"
                     autocomplete="name"
                 >
+
             </div>
 
+
             <div class="auth-field">
-                <label for="auth-email">Email</label>
+
+                <label for="auth-email">
+                    Email
+                </label>
 
                 <input
                     id="auth-email"
@@ -57,10 +107,15 @@
                     autocomplete="email"
                     required
                 >
+
             </div>
 
+
             <div class="auth-field">
-                <label for="auth-password">Mot de passe</label>
+
+                <label for="auth-password">
+                    Mot de passe
+                </label>
 
                 <input
                     id="auth-password"
@@ -69,7 +124,9 @@
                     autocomplete="current-password"
                     required
                 >
+
             </div>
+
 
             <button
                 id="auth-submit"
@@ -79,7 +136,11 @@
                 Se connecter
             </button>
 
-            <p id="auth-message" class="auth-message"></p>
+
+            <p
+                id="auth-message"
+                class="auth-message"
+            ></p>
 
         </form>
 
@@ -88,47 +149,182 @@
 </div>
 
 
-<div id="app">
+<!-- ========================= -->
+<!-- APPLICATION -->
+<!-- ========================= -->
 
-    <aside class="sidebar">
+<div
+    id="app"
+    class="hidden"
+>
+
+    <!-- Fond du menu mobile -->
+    <div
+        id="mobile-overlay"
+        class="mobile-overlay"
+    ></div>
+
+
+    <!-- ========================= -->
+    <!-- SIDEBAR -->
+    <!-- ========================= -->
+
+    <aside
+        id="sidebar"
+        class="sidebar"
+    >
 
         <div class="logo">
-            <div class="logo-icon">B</div>
-            <span>BrevetTrack</span>
+
+            <div class="logo-icon">
+                B
+            </div>
+
+            <span>
+                BrevetTrack
+            </span>
+
         </div>
+
 
         <nav>
 
-            <button class="nav-item active">
-                ⌂
-                <span>Tableau de bord</span>
+            <button
+                class="nav-item active"
+                data-page="dashboard"
+                type="button"
+            >
+
+                <span class="nav-icon">
+                    ⌂
+                </span>
+
+                <span>
+                    Tableau de bord
+                </span>
+
             </button>
 
-            <button class="nav-item">
-                ▣
-                <span>Mes notes</span>
+
+            <button
+                class="nav-item"
+                data-page="notes"
+                type="button"
+            >
+
+                <span class="nav-icon">
+                    ▣
+                </span>
+
+                <span>
+                    Mes notes
+                </span>
+
             </button>
 
-            <button class="nav-item">
-                ✓
-                <span>À faire</span>
+
+            <button
+                class="nav-item"
+                data-page="todo"
+                type="button"
+            >
+
+                <span class="nav-icon">
+                    ✓
+                </span>
+
+                <span>
+                    À faire
+                </span>
+
             </button>
 
-            <button class="nav-item">
-                ▤
-                <span>Brevet</span>
+
+            <button
+                class="nav-item"
+                data-page="brevet"
+                type="button"
+            >
+
+                <span class="nav-icon">
+                    ▤
+                </span>
+
+                <span>
+                    Brevet
+                </span>
+
             </button>
 
-            <button class="nav-item">
-                ◷
-                <span>Calendrier</span>
+
+            <button
+                class="nav-item"
+                data-page="calendar"
+                type="button"
+            >
+
+                <span class="nav-icon">
+                    ◷
+                </span>
+
+                <span>
+                    Calendrier
+                </span>
+
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-page="money"
+                type="button"
+            >
+
+                <span class="nav-icon">
+                    €
+                </span>
+
+                <span>
+                    Argent
+                </span>
+
             </button>
 
         </nav>
 
+
+        <!-- Utilisateur -->
         <div class="sidebar-bottom">
 
-            <button id="logout-btn" class="logout-btn">
+            <div class="sidebar-user">
+
+                <div
+                    id="sidebar-avatar"
+                    class="avatar small-avatar"
+                >
+                    B
+                </div>
+
+                <div class="sidebar-user-info">
+
+                    <strong id="sidebar-name">
+                        Toi
+                    </strong>
+
+                    <span id="sidebar-email">
+                        —
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <button
+                id="logout-btn"
+                class="logout-btn"
+                type="button"
+            >
                 ↪ Déconnexion
             </button>
 
@@ -137,170 +333,463 @@
     </aside>
 
 
+    <!-- ========================= -->
+    <!-- CONTENU -->
+    <!-- ========================= -->
+
     <div class="content">
+
+        <!-- TOPBAR -->
 
         <header class="topbar">
 
+            <button
+                id="mobile-menu-btn"
+                class="mobile-menu-btn"
+                type="button"
+                aria-label="Ouvrir le menu"
+                aria-expanded="false"
+            >
+                ☰
+            </button>
+
+
             <div>
-                <p class="eyebrow">
+
+                <p
+                    id="page-eyebrow"
+                    class="eyebrow"
+                >
                     TABLEAU DE BORD
                 </p>
 
                 <h1 id="welcome">
                     Bonjour
                 </h1>
+
             </div>
 
-            <div class="profile">
-                <div id="avatar" class="avatar">
+
+            <button
+                id="profile-btn"
+                class="profile profile-button"
+                type="button"
+                aria-label="Profil"
+            >
+
+                <div
+                    id="top-avatar"
+                    class="avatar"
+                >
                     B
                 </div>
-            </div>
+
+            </button>
 
         </header>
 
 
-        <main>
+        <!-- ========================= -->
+        <!-- MAIN -->
+        <!-- ========================= -->
 
-            <section class="hero-card">
-
-                <div>
-
-                    <p class="hero-label">
-                        TA PROGRESSION
-                    </p>
-
-                    <h2>
-                        Continue comme ça.
-                    </h2>
-
-                    <p class="hero-text">
-                        Suis tes résultats et prépare ton brevet sereinement.
-                    </p>
-
-                </div>
-
-                <div class="hero-score">
-
-                    <span id="general-average">
-                        —
-                    </span>
-
-                    <small>/20</small>
-
-                    <p>
-                        Moyenne actuelle
-                    </p>
-
-                </div>
-
-            </section>
+        <main id="main">
 
 
-            <section class="stats-grid">
+            <!-- ========================= -->
+            <!-- DASHBOARD -->
+            <!-- ========================= -->
 
-                <div class="stat-card">
+            <section
+                id="page-dashboard"
+                class="page"
+            >
 
-                    <div class="stat-top">
-                        <span>Moyenne générale</span>
-                        <span class="stat-icon">↗</span>
+                <!-- HERO -->
+
+                <section class="hero-card">
+
+                    <div>
+
+                        <p class="hero-label">
+                            TA PROGRESSION
+                        </p>
+
+                        <h2>
+                            Continue comme ça.
+                        </h2>
+
+                        <p class="hero-text">
+                            Suis tes résultats et prépare ton brevet sereinement.
+                        </p>
+
                     </div>
 
-                    <strong id="average-card">
-                        —
-                    </strong>
 
-                    <p>
-                        sur 20
-                    </p>
+                    <div class="hero-score">
 
-                </div>
+                        <span id="general-average">
+                            —
+                        </span>
 
+                        <small>
+                            /20
+                        </small>
 
-                <div class="stat-card">
+                        <p>
+                            Moyenne actuelle
+                        </p>
 
-                    <div class="stat-top">
-                        <span>Notes</span>
-                        <span class="stat-icon">▤</span>
                     </div>
 
-                    <strong id="grades-count">
-                        0
-                    </strong>
-
-                    <p>
-                        notes enregistrées
-                    </p>
-
-                </div>
+                </section>
 
 
-                <div class="stat-card">
+                <!-- STATISTIQUES -->
 
-                    <div class="stat-top">
-                        <span>Objectif</span>
-                        <span class="stat-icon">◎</span>
+                <section class="stats-grid">
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <span>
+                                Moyenne générale
+                            </span>
+
+                            <span class="stat-icon">
+                                ↗
+                            </span>
+
+                        </div>
+
+                        <strong id="average-card">
+                            —
+                        </strong>
+
+                        <p>
+                            sur 20
+                        </p>
+
                     </div>
 
-                    <strong id="target-average">
-                        —
-                    </strong>
 
-                    <p>
-                        moyenne visée
-                    </p>
+                    <div class="stat-card">
 
-                </div>
+                        <div class="stat-top">
 
+                            <span>
+                                Notes
+                            </span>
 
-                <div class="stat-card">
+                            <span class="stat-icon">
+                                ▤
+                            </span>
 
-                    <div class="stat-top">
-                        <span>Brevet</span>
-                        <span class="stat-icon">★</span>
+                        </div>
+
+                        <strong id="grades-count">
+                            0
+                        </strong>
+
+                        <p>
+                            notes enregistrées
+                        </p>
+
                     </div>
 
-                    <strong id="brevet-estimate">
-                        —
-                    </strong>
 
-                    <p>
-                        estimation actuelle
-                    </p>
+                    <div class="stat-card">
 
-                </div>
+                        <div class="stat-top">
 
-            </section>
+                            <span>
+                                Objectif
+                            </span>
+
+                            <span class="stat-icon">
+                                ◎
+                            </span>
+
+                        </div>
+
+                        <strong id="target-average">
+                            —
+                        </strong>
+
+                        <p>
+                            moyenne visée
+                        </p>
+
+                    </div>
 
 
-            <section class="dashboard-grid">
+                    <div class="stat-card">
 
-                <div class="card notes-card">
+                        <div class="stat-top">
 
-                    <div class="card-header">
+                            <span>
+                                Brevet
+                            </span>
+
+                            <span class="stat-icon">
+                                ★
+                            </span>
+
+                        </div>
+
+                        <strong id="brevet-estimate">
+                            —
+                        </strong>
+
+                        <p>
+                            estimation actuelle
+                        </p>
+
+                    </div>
+
+                </section>
+
+
+                <!-- NOTES + OBJECTIF -->
+
+                <section class="dashboard-grid">
+
+
+                    <!-- NOTES -->
+
+                    <div class="card notes-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>
+                                    Mes dernières notes
+                                </h2>
+
+                                <p>
+                                    Ton historique de résultats
+                                </p>
+
+                            </div>
+
+
+                            <button
+                                id="add-grade-btn"
+                                class="primary-btn"
+                                type="button"
+                            >
+                                + Ajouter
+                            </button>
+
+                        </div>
+
+
+                        <div id="grades-list">
+
+                            <div class="empty">
+
+                                <div class="empty-icon">
+                                    ▤
+                                </div>
+
+                                <h3>
+                                    Aucune note
+                                </h3>
+
+                                <p>
+                                    Ajoute ta première note pour commencer.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- OBJECTIF -->
+
+                    <div class="card target-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <h2>
+                                    Objectif
+                                </h2>
+
+                                <p>
+                                    Ta moyenne cible
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="target-circle">
+
+                            <span id="target-circle-value">
+                                —
+                            </span>
+
+                            <small>
+                                /20
+                            </small>
+
+                        </div>
+
+
+                        <label for="target-input">
+                            Nouvel objectif
+                        </label>
+
+
+                        <div class="target-input">
+
+                            <input
+                                id="target-input"
+                                type="number"
+                                min="0"
+                                max="20"
+                                step="0.1"
+                                placeholder="15"
+                            >
+
+                            <button
+                                id="target-btn"
+                                type="button"
+                            >
+                                OK
+                            </button>
+
+                        </div>
+
+
+                        <div class="progress-area">
+
+                            <div class="progress-label">
+
+                                <span>
+                                    Progression
+                                </span>
+
+                                <strong id="progress-text">
+                                    —
+                                </strong>
+
+                            </div>
+
+
+                            <div class="progress">
+
+                                <div
+                                    id="progress-bar"
+                                    style="width: 0%"
+                                ></div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                <!-- BREVET -->
+
+                <section class="card brevet-card">
+
+                    <div class="brevet-left">
+
+                        <div class="brevet-icon">
+                            ★
+                        </div>
+
 
                         <div>
 
+                            <p class="eyebrow">
+                                OBJECTIF BREVET
+                            </p>
+
                             <h2>
-                                Mes dernières notes
+                                Prépare ton diplôme
                             </h2>
 
                             <p>
-                                Ton historique de résultats
+                                Ton estimation évoluera automatiquement avec tes notes.
                             </p>
 
                         </div>
 
-                        <button
-                            id="add-grade-btn"
-                            class="primary-btn"
-                        >
-                            + Ajouter
-                        </button>
+                    </div>
+
+
+                    <div class="brevet-result">
+
+                        <strong id="brevet-big">
+                            —
+                        </strong>
+
+                        <span>
+                            /20
+                        </span>
 
                     </div>
 
-                    <div id="grades-list">
+                </section>
+
+            </section>
+
+
+            <!-- ========================= -->
+            <!-- NOTES -->
+            <!-- ========================= -->
+
+            <section
+                id="page-notes"
+                class="page hidden"
+            >
+
+                <div class="page-header">
+
+                    <div>
+
+                        <p class="eyebrow">
+                            NOTES
+                        </p>
+
+                        <h2>
+                            Mes notes
+                        </h2>
+
+                        <p>
+                            Retrouve toutes tes évaluations.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        id="add-grade-btn-notes"
+                        class="primary-btn"
+                        type="button"
+                    >
+                        + Ajouter
+                    </button>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div id="all-grades-list">
 
                         <div class="empty">
 
@@ -313,85 +802,8 @@
                             </h3>
 
                             <p>
-                                Ajoute ta première note pour commencer.
+                                Tes notes apparaîtront ici.
                             </p>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <div class="card target-card">
-
-                    <div class="card-header">
-
-                        <div>
-
-                            <h2>
-                                Objectif
-                            </h2>
-
-                            <p>
-                                Ta moyenne cible
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="target-circle">
-
-                        <span id="target-circle-value">
-                            —
-                        </span>
-
-                        <small>/20</small>
-
-                    </div>
-
-
-                    <label>
-                        Nouvel objectif
-                    </label>
-
-                    <div class="target-input">
-
-                        <input
-                            id="target-input"
-                            type="number"
-                            min="0"
-                            max="20"
-                            step="0.1"
-                            placeholder="15"
-                        >
-
-                        <button id="target-btn">
-                            OK
-                        </button>
-
-                    </div>
-
-
-                    <div class="progress-area">
-
-                        <div class="progress-label">
-
-                            <span>
-                                Progression
-                            </span>
-
-                            <strong id="progress-text">
-                                —
-                            </strong>
-
-                        </div>
-
-                        <div class="progress">
-
-                            <div id="progress-bar"></div>
 
                         </div>
 
@@ -402,26 +814,124 @@
             </section>
 
 
-            <section class="card brevet-card">
+            <!-- ========================= -->
+            <!-- À FAIRE -->
+            <!-- ========================= -->
 
-                <div class="brevet-left">
+            <section
+                id="page-todo"
+                class="page hidden"
+            >
 
-                    <div class="brevet-icon">
-                        ★
-                    </div>
+                <div class="page-header">
 
                     <div>
 
                         <p class="eyebrow">
-                            OBJECTIF BREVET
+                            ORGANISATION
                         </p>
 
                         <h2>
-                            Prépare ton diplôme
+                            À faire
                         </h2>
 
                         <p>
-                            Ton estimation évoluera automatiquement avec tes notes.
+                            Gère tes devoirs et tes tâches.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        id="add-todo-btn"
+                        class="primary-btn"
+                        type="button"
+                    >
+                        + Ajouter
+                    </button>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div
+                        id="todo-form"
+                        class="todo-form hidden"
+                    >
+
+                        <input
+                            id="todo-title"
+                            type="text"
+                            placeholder="Ex : Réviser les maths"
+                        >
+
+
+                        <input
+                            id="todo-date"
+                            type="datetime-local"
+                        >
+
+
+                        <button
+                            id="save-todo-btn"
+                            class="save-btn"
+                            type="button"
+                        >
+                            Ajouter
+                        </button>
+
+                    </div>
+
+
+                    <div id="todo-list">
+
+                        <div class="empty">
+
+                            <div class="empty-icon">
+                                ✓
+                            </div>
+
+                            <h3>
+                                Rien à faire
+                            </h3>
+
+                            <p>
+                                Ajoute ton premier devoir ou ta première tâche.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ========================= -->
+            <!-- BREVET -->
+            <!-- ========================= -->
+
+            <section
+                id="page-brevet"
+                class="page hidden"
+            >
+
+                <div class="page-header">
+
+                    <div>
+
+                        <p class="eyebrow">
+                            DIPLÔME NATIONAL DU BREVET
+                        </p>
+
+                        <h2>
+                            Brevet
+                        </h2>
+
+                        <p>
+                            Estimation basée sur tes résultats.
                         </p>
 
                     </div>
@@ -429,15 +939,350 @@
                 </div>
 
 
-                <div class="brevet-result">
+                <section class="stats-grid">
 
-                    <strong id="brevet-big">
-                        —
-                    </strong>
+                    <div class="stat-card">
 
-                    <span>
-                        /20
-                    </span>
+                        <span>
+                            Estimation
+                        </span>
+
+                        <strong id="brevet-estimate-page">
+                            —
+                        </strong>
+
+                        <p>
+                            /20
+                        </p>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <span>
+                            Points estimés
+                        </span>
+
+                        <strong id="brevet-points">
+                            —
+                        </strong>
+
+                        <p>
+                            sur 800
+                        </p>
+
+                    </div>
+
+                </section>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <h2>
+                                Simulation
+                            </h2>
+
+                            <p>
+                                Voici ton estimation actuelle du brevet.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div id="brevet-detail">
+
+                        <div class="empty">
+
+                            <div class="empty-icon">
+                                ★
+                            </div>
+
+                            <h3>
+                                Pas encore assez de données
+                            </h3>
+
+                            <p>
+                                Ajoute des notes pour obtenir une estimation.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ========================= -->
+            <!-- CALENDRIER -->
+            <!-- ========================= -->
+
+            <section
+                id="page-calendar"
+                class="page hidden"
+            >
+
+                <div class="page-header">
+
+                    <div>
+
+                        <p class="eyebrow">
+                            ORGANISATION
+                        </p>
+
+                        <h2>
+                            Calendrier
+                        </h2>
+
+                        <p>
+                            Retrouve tes tâches et événements.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="calendar-controls">
+
+                        <input
+                            id="calendar-date"
+                            type="date"
+                        >
+
+                    </div>
+
+
+                    <div id="calendar-list">
+
+                        <div class="empty">
+
+                            <div class="empty-icon">
+                                ◷
+                            </div>
+
+                            <h3>
+                                Ton calendrier
+                            </h3>
+
+                            <p>
+                                Tes tâches avec une date apparaîtront ici.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ========================= -->
+            <!-- ARGENT -->
+            <!-- ========================= -->
+
+            <section
+                id="page-money"
+                class="page hidden"
+            >
+
+                <div class="page-header">
+
+                    <div>
+
+                        <p class="eyebrow">
+                            FINANCES
+                        </p>
+
+                        <h2>
+                            Argent
+                        </h2>
+
+                        <p>
+                            Suis tes récompenses, dépenses et soldes.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        id="add-money-btn"
+                        class="primary-btn"
+                        type="button"
+                    >
+                        + Opération
+                    </button>
+
+                </div>
+
+
+                <!-- SOLDES -->
+
+                <section class="stats-grid money-stats">
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <span>
+                                Total
+                            </span>
+
+                            <span class="stat-icon">
+                                €
+                            </span>
+
+                        </div>
+
+                        <strong id="money-page-total">
+                            0 DH
+                        </strong>
+
+                        <p>
+                            tous comptes
+                        </p>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <span>
+                                Banque
+                            </span>
+
+                            <span class="stat-icon">
+                                ▣
+                            </span>
+
+                        </div>
+
+                        <strong id="money-bank">
+                            0 DH
+                        </strong>
+
+                        <p>
+                            compte bancaire
+                        </p>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <span>
+                                Épargne
+                            </span>
+
+                            <span class="stat-icon">
+                                ◎
+                            </span>
+
+                        </div>
+
+                        <strong id="money-savings">
+                            0 DH
+                        </strong>
+
+                        <p>
+                            épargne
+                        </p>
+
+                    </div>
+
+
+                    <div class="stat-card">
+
+                        <div class="stat-top">
+
+                            <span>
+                                Espèces
+                            </span>
+
+                            <span class="stat-icon">
+                                DH
+                            </span>
+
+                        </div>
+
+                        <strong id="money-cash">
+                            0 DH
+                        </strong>
+
+                        <p>
+                            argent liquide
+                        </p>
+
+                    </div>
+
+                </section>
+
+
+                <!-- HISTORIQUE -->
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <h2>
+                                Historique
+                            </h2>
+
+                            <p>
+                                Tes entrées et sorties d'argent.
+                            </p>
+
+                        </div>
+
+
+                        <button
+                            id="edit-balances-btn"
+                            class="secondary-btn"
+                            type="button"
+                        >
+                            Modifier les soldes
+                        </button>
+
+                    </div>
+
+
+                    <div id="money-list">
+
+                        <div class="empty">
+
+                            <div class="empty-icon">
+                                €
+                            </div>
+
+                            <h3>
+                                Aucun mouvement
+                            </h3>
+
+                            <p>
+                                Ton historique apparaîtra ici.
+                            </p>
+
+                        </div>
+
+                    </div>
 
                 </div>
 
@@ -450,16 +1295,26 @@
 </div>
 
 
-<div id="grade-modal" class="modal hidden">
+<!-- ========================= -->
+<!-- MODALE : AJOUT NOTE -->
+<!-- ========================= -->
+
+<div
+    id="grade-modal"
+    class="modal hidden"
+>
 
     <div class="modal-card">
 
         <button
             id="close-modal"
             class="modal-close"
+            type="button"
+            aria-label="Fermer"
         >
             ×
         </button>
+
 
         <p class="eyebrow">
             NOUVELLE NOTE
@@ -474,7 +1329,7 @@
         </p>
 
 
-        <label>
+        <label for="subject-input">
             Matière
         </label>
 
@@ -485,7 +1340,7 @@
         >
 
 
-        <label>
+        <label for="grade-input">
             Note
         </label>
 
@@ -503,7 +1358,7 @@
 
             <div>
 
-                <label>
+                <label for="coefficient-input">
                     Coefficient
                 </label>
 
@@ -520,7 +1375,7 @@
 
             <div>
 
-                <label>
+                <label for="type-input">
                     Type
                 </label>
 
@@ -553,7 +1408,30 @@
         </div>
 
 
-        <label>
+        <!-- COMPTE DE LA RÉCOMPENSE -->
+
+        <label for="grade-money-account">
+            Compte de la récompense
+        </label>
+
+        <select id="grade-money-account">
+
+            <option value="bank">
+                Banque
+            </option>
+
+            <option value="savings">
+                Épargne
+            </option>
+
+            <option value="cash">
+                Espèces
+            </option>
+
+        </select>
+
+
+        <label for="date-input">
             Date
         </label>
 
@@ -563,12 +1441,22 @@
         >
 
 
+        <div
+            id="grade-money-preview"
+            class="money-preview"
+        >
+            Récompense : 0 DH
+        </div>
+
+
         <button
             id="save-grade-btn"
             class="save-btn"
+            type="button"
         >
             Ajouter la note
         </button>
+
 
         <p id="grade-message"></p>
 
@@ -577,7 +1465,218 @@
 </div>
 
 
+<!-- ========================= -->
+<!-- MODALE : ARGENT -->
+<!-- ========================= -->
+
+<div
+    id="money-modal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <button
+            id="close-money-modal"
+            class="modal-close"
+            type="button"
+            aria-label="Fermer"
+        >
+            ×
+        </button>
+
+
+        <p class="eyebrow">
+            ARGENT
+        </p>
+
+        <h2>
+            Ajouter une opération
+        </h2>
+
+        <p class="modal-description">
+            Ajoute ou retire de l'argent manuellement.
+        </p>
+
+
+        <label for="money-amount">
+            Montant
+        </label>
+
+        <input
+            id="money-amount"
+            type="number"
+            step="0.01"
+            placeholder="100"
+        >
+
+
+        <p class="input-help">
+            Utilise un nombre positif pour ajouter et un nombre négatif pour retirer.
+        </p>
+
+
+        <label for="money-account">
+            Compte
+        </label>
+
+        <select id="money-account">
+
+            <option value="bank">
+                Banque
+            </option>
+
+            <option value="savings">
+                Épargne
+            </option>
+
+            <option value="cash">
+                Espèces
+            </option>
+
+        </select>
+
+
+        <label for="money-type">
+            Type
+        </label>
+
+        <select id="money-type">
+
+            <option value="manual">
+                Opération manuelle
+            </option>
+
+            <option value="encouragement">
+                Encouragement (+100 DH)
+            </option>
+
+            <option value="observation">
+                Observation (-150 DH)
+            </option>
+
+        </select>
+
+
+        <label for="money-description">
+            Description
+        </label>
+
+        <input
+            id="money-description"
+            type="text"
+            placeholder="Ex : argent de poche"
+        >
+
+
+        <button
+            id="save-money-btn"
+            class="save-btn"
+            type="button"
+        >
+            Ajouter
+        </button>
+
+
+        <p id="money-message"></p>
+
+    </div>
+
+</div>
+
+
+<!-- ========================= -->
+<!-- MODALE : SOLDES INITIAUX -->
+<!-- ========================= -->
+
+<div
+    id="balance-modal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <button
+            id="close-balance-modal"
+            class="modal-close"
+            type="button"
+            aria-label="Fermer"
+        >
+            ×
+        </button>
+
+
+        <p class="eyebrow">
+            SOLDES
+        </p>
+
+        <h2>
+            Mes soldes actuels
+        </h2>
+
+        <p class="modal-description">
+            Entre combien tu as déjà sur chaque compte.
+        </p>
+
+
+        <label for="initial-bank">
+            Banque
+        </label>
+
+        <input
+            id="initial-bank"
+            type="number"
+            step="0.01"
+            placeholder="0"
+        >
+
+
+        <label for="initial-savings">
+            Épargne
+        </label>
+
+        <input
+            id="initial-savings"
+            type="number"
+            step="0.01"
+            placeholder="0"
+        >
+
+
+        <label for="initial-cash">
+            Espèces
+        </label>
+
+        <input
+            id="initial-cash"
+            type="number"
+            step="0.01"
+            placeholder="0"
+        >
+
+
+        <button
+            id="save-balances-btn"
+            class="save-btn"
+            type="button"
+        >
+            Enregistrer les soldes
+        </button>
+
+
+        <p id="balance-message"></p>
+
+    </div>
+
+</div>
+
+
+<!-- ========================= -->
+<!-- SUPABASE -->
+<!-- ========================= -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script src="app.js"></script>
 
 </body>

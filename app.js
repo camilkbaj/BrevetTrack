@@ -8,103 +8,222 @@ const supabaseClient = window.supabase.createClient(
 
 let currentUser = null;
 let grades = [];
+let todos = [];
+let moneyTransactions = [];
 
-let navigationReady = false;
-let buttonsReady = false;
-let authReady = false;
+let currentPage = "dashboard";
 
-const main = document.querySelector("main");
+const main = document.getElementById("main");
+const modal = document.getElementById("grade-modal");
 
 
-/* =========================
+/* =========================================================
    DÉMARRAGE
-========================= */
+   ========================================================= */
 
 async function startApp() {
 
-    bindAuthUI();
-
     const {
-        data: { session },
-        error
+        data: { session }
     } = await supabaseClient.auth.getSession();
 
-    if (error) {
-        console.error(error);
-        showAuth();
-        return;
-    }
-
     if (!session) {
-        showAuth();
-        return;
-    }
 
-    await enterApp(session);
-}
+        document.getElementById("auth-screen").classList.remove("hidden");
+        document.getElementById("app").classList.add("hidden");
 
+        setupAuth();
 
-/* =========================
-   AUTH — AFFICHAGE
-========================= */
-
-function showAuth() {
-
-    const authScreen =
-        document.getElementById("auth-screen");
-
-    const app =
-        document.getElementById("app");
-
-    if (authScreen) {
-        authScreen.style.display = "flex";
-    }
-
-    if (app) {
-        app.style.display = "none";
-    }
-}
-
-
-async function enterApp(session) {
-
-    if (!session) {
-        showAuth();
         return;
     }
 
     currentUser = session.user;
 
-    const authScreen =
-        document.getElementById("auth-screen");
-
-    const app =
-        document.getElementById("app");
-
-    if (authScreen) {
-        authScreen.style.display = "none";
-    }
-
-    if (app) {
-        app.style.display = "block";
-    }
+    document.getElementById("auth-screen").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
 
     await loadProfile();
     await loadGrades();
-    loadTarget();
+    await loadTodos();
+    await loadMoney();
 
     setupNavigation();
     setupButtons();
+    setupMobileMenu();
+    setupGradeRewardPreview();
+
+    showPage("dashboard");
+
+    registerServiceWorker();
+
 }
 
 
-/* =========================
+/* =========================================================
+   AUTH
+   ========================================================= */
+
+let signupMode = false;
+
+function setupAuth() {
+
+    const loginTab = document.getElementById("login-tab");
+    const signupTab = document.getElementById("signup-tab");
+    const authForm = document.getElementById("auth-form");
+    const nameField = document.getElementById("name-field");
+    const authTitle = document.getElementById("auth-title");
+    const authSubtitle = document.getElementById("auth-subtitle");
+    const authSubmit = document.getElementById("auth-submit");
+
+    if (!loginTab || !signupTab || !authForm) return;
+
+    loginTab.onclick = () => {
+
+        signupMode = false;
+
+        loginTab.classList.add("active");
+        signupTab.classList.remove("active");
+
+        nameField.classList.add("hidden");
+
+        authTitle.textContent = "Connexion";
+
+        authSubtitle.textContent =
+            "Connecte-toi à ton espace BrevetTrack.";
+
+        authSubmit.textContent =
+            "Se connecter";
+
+    };
+
+
+    signupTab.onclick = () => {
+
+        signupMode = true;
+
+        signupTab.classList.add("active");
+        loginTab.classList.remove("active");
+
+        nameField.classList.remove("hidden");
+
+        authTitle.textContent =
+            "Créer un compte";
+
+        authSubtitle.textContent =
+            "Crée ton espace personnel BrevetTrack.";
+
+        authSubmit.textContent =
+            "Créer mon compte";
+
+    };
+
+
+    authForm.onsubmit = async event => {
+
+        event.preventDefault();
+
+        const email =
+            document.getElementById("auth-email").value.trim();
+
+        const password =
+            document.getElementById("auth-password").value;
+
+        const name =
+            document.getElementById("auth-name").value.trim();
+
+        const message =
+            document.getElementById("auth-message");
+
+        message.textContent = "";
+
+        if (!email || !password) {
+
+            message.textContent =
+                "Entre ton email et ton mot de passe.";
+
+            return;
+        }
+
+
+        authSubmit.disabled = true;
+
+        if (signupMode) {
+
+            const {
+                data,
+                error
+            } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        name
+                    }
+                }
+            });
+
+
+            if (error) {
+
+                message.textContent =
+                    error.message;
+
+                authSubmit.disabled = false;
+
+                return;
+            }
+
+
+            if (data.user) {
+
+                await supabaseClient
+                    .from("profiles")
+                    .upsert({
+                        id: data.user.id,
+                        name: name || "Toi"
+                    });
+
+            }
+
+            message.style.color = "#16a34a";
+
+            message.textContent =
+                "Compte créé. Connexion en cours...";
+
+        } else {
+
+            const {
+                error
+            } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
+
+
+            if (error) {
+
+                message.textContent =
+                    "Email ou mot de passe incorrect.";
+
+                authSubmit.disabled = false;
+
+                return;
+            }
+
+        }
+
+        authSubmit.disabled = false;
+
+    };
+
+}
+
+
+/* =========================================================
    PROFIL
-========================= */
+   ========================================================= */
 
 async function loadProfile() {
-
-    if (!currentUser) return;
 
     const {
         data,
@@ -113,44 +232,83 @@ async function loadProfile() {
         .from("profiles")
         .select("*")
         .eq("id", currentUser.id)
-        .maybeSingle();
+        .single();
 
-    if (error) {
-        console.error(error);
-        return;
+
+    let name = "Toi";
+
+    if (!error && data) {
+
+        name =
+            data.name ||
+            data.first_name ||
+            "Toi";
+
     }
 
-    const name =
-        data?.name ||
-        currentUser.user_metadata?.name ||
-        currentUser.email?.split("@")[0] ||
-        "toi";
 
-    const welcome =
-        document.getElementById("welcome");
+    if (
+        !name ||
+        name === "Toi"
+    ) {
 
-    if (welcome) {
-        welcome.textContent =
-            `Bonjour ${name}`;
+        name =
+            currentUser.user_metadata?.name ||
+            currentUser.user_metadata?.first_name ||
+            "Toi";
+
     }
 
-    const avatar =
-        document.getElementById("avatar");
 
-    if (avatar) {
-        avatar.textContent =
-            name.charAt(0).toUpperCase();
+    document.getElementById("welcome").textContent =
+        `Bonjour ${name}`;
+
+
+    const sidebarName =
+        document.getElementById("sidebar-name");
+
+    const sidebarEmail =
+        document.getElementById("sidebar-email");
+
+    if (sidebarName) {
+        sidebarName.textContent = name;
     }
+
+    if (sidebarEmail) {
+        sidebarEmail.textContent =
+            currentUser.email || "—";
+    }
+
+
+    const firstLetter =
+        name
+            .trim()
+            .charAt(0)
+            .toUpperCase() || "B";
+
+
+    const topAvatar =
+        document.getElementById("top-avatar");
+
+    const sidebarAvatar =
+        document.getElementById("sidebar-avatar");
+
+    if (topAvatar) {
+        topAvatar.textContent = firstLetter;
+    }
+
+    if (sidebarAvatar) {
+        sidebarAvatar.textContent = firstLetter;
+    }
+
 }
 
 
-/* =========================
+/* =========================================================
    NOTES
-========================= */
+   ========================================================= */
 
 async function loadGrades() {
-
-    if (!currentUser) return;
 
     const {
         data,
@@ -163,19 +321,112 @@ async function loadGrades() {
             ascending: false
         });
 
+
     if (error) {
-        console.error(error);
+
+        console.error(
+            "Erreur chargement notes :",
+            error
+        );
+
+        grades = [];
+
         return;
     }
 
+
     grades = data || [];
 
-    displayGrades(grades);
-    calculateAverage(grades);
+    calculateAverage();
+
+    displayDashboardGrades();
+
 }
 
 
-function displayGrades(list) {
+function calculateAverage() {
+
+    if (!grades.length) {
+
+        setAverage("—");
+
+        updateBrevet();
+
+        return;
+    }
+
+
+    let total = 0;
+    let coefficients = 0;
+
+
+    grades.forEach(grade => {
+
+        const value =
+            Number(grade.grade);
+
+        const coefficient =
+            Number(grade.coefficient) || 1;
+
+
+        if (!Number.isNaN(value)) {
+
+            total +=
+                value * coefficient;
+
+            coefficients +=
+                coefficient;
+
+        }
+
+    });
+
+
+    if (!coefficients) {
+
+        setAverage("—");
+
+        return;
+    }
+
+
+    const average =
+        total / coefficients;
+
+
+    setAverage(
+        average.toFixed(2)
+    );
+
+    updateProgress(average);
+    updateBrevet(average);
+
+}
+
+
+function setAverage(value) {
+
+    const ids = [
+        "general-average",
+        "average-card"
+    ];
+
+
+    ids.forEach(id => {
+
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            element.textContent = value;
+        }
+
+    });
+
+}
+
+
+function displayDashboardGrades() {
 
     const container =
         document.getElementById("grades-list");
@@ -183,280 +434,593 @@ function displayGrades(list) {
     const count =
         document.getElementById("grades-count");
 
-    if (!container) return;
 
     if (count) {
-        count.textContent = list.length;
+        count.textContent =
+            grades.length;
     }
 
-    if (list.length === 0) {
+
+    if (!container) return;
+
+
+    if (!grades.length) {
 
         container.innerHTML = `
             <div class="empty">
                 <div class="empty-icon">▤</div>
-
-                <h3>
-                    Aucune note
-                </h3>
-
-                <p>
-                    Ajoute ta première note pour commencer.
-                </p>
+                <h3>Aucune note</h3>
+                <p>Ajoute ta première note pour commencer.</p>
             </div>
         `;
 
         return;
     }
 
+
     container.innerHTML =
-        list.map(grade => {
+        grades
+            .slice(0, 8)
+            .map(createGradeHTML)
+            .join("");
 
-            const date =
-                grade.grade_date
-                    ? new Date(
-                        grade.grade_date
-                    ).toLocaleDateString("fr-FR")
-                    : "—";
 
-            return `
-                <div class="grade-row">
+    attachGradeDeleteButtons();
 
-                    <strong>
-                        ${escapeHTML(
-                            grade.subject
-                        )}
-                    </strong>
+}
 
-                    <div class="grade-value">
-                        ${grade.grade}/20
-                    </div>
 
-                    <div>
-                        Coef.
-                        ${grade.coefficient || 1}
-                    </div>
+function createGradeHTML(grade) {
 
-                    <div class="grade-type">
-                        ${escapeHTML(
-                            grade.grade_type || "Note"
-                        )}
-                    </div>
+    const subject =
+        escapeHTML(
+            grade.subject || "Matière"
+        );
 
-                    <div class="grade-date">
-                        ${date}
-                    </div>
 
-                    <button
-                        class="delete-grade"
-                        data-delete-grade="${grade.id}"
-                    >
-                        Supprimer
-                    </button>
+    const type =
+        escapeHTML(
+            grade.grade_type || "Note"
+        );
 
-                </div>
-            `;
 
-        }).join("");
+    const coefficient =
+        Number(grade.coefficient) || 1;
+
+
+    const date =
+        formatDate(grade.grade_date);
+
+
+    return `
+        <div class="grade-row">
+
+            <strong>
+                ${subject}
+            </strong>
+
+            <div class="grade-value">
+                ${Number(grade.grade).toFixed(2)}/20
+            </div>
+
+            <div>
+                Coef. ${coefficient}
+            </div>
+
+            <div class="grade-type">
+                ${type}
+            </div>
+
+            <div class="grade-date">
+                ${date}
+            </div>
+
+            <button
+                class="delete-grade"
+                data-delete-grade="${grade.id}"
+                type="button"
+            >
+                Supprimer
+            </button>
+
+        </div>
+    `;
+
+}
+
+
+function attachGradeDeleteButtons() {
 
     document
         .querySelectorAll("[data-delete-grade]")
         .forEach(button => {
 
-            button.addEventListener(
-                "click",
-                () => {
+            button.onclick = async () => {
 
-                    deleteGrade(
-                        button.dataset.deleteGrade
-                    );
+                await deleteGrade(
+                    button.dataset.deleteGrade
+                );
 
-                }
-            );
+            };
 
         });
+
 }
 
 
-/* =========================
-   MOYENNE
-========================= */
+async function deleteGrade(id) {
 
-function calculateAverage(list) {
+    if (
+        !confirm(
+            "Supprimer cette note ?"
+        )
+    ) {
+        return;
+    }
 
-    if (list.length === 0) {
 
-        setAverage("—");
+    const {
+        error
+    } = await supabaseClient
+        .from("grades")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
 
-        const brevetEstimate =
-            document.getElementById(
-                "brevet-estimate"
-            );
 
-        const brevetBig =
-            document.getElementById(
-                "brevet-big"
-            );
+    if (error) {
 
-        if (brevetEstimate) {
-            brevetEstimate.textContent = "—";
-        }
-
-        if (brevetBig) {
-            brevetBig.textContent = "—";
-        }
-
-        updateProgress(NaN);
+        alert(
+            "Erreur : " +
+            error.message
+        );
 
         return;
     }
 
-    let total = 0;
-    let coefficients = 0;
 
-    list.forEach(grade => {
+    await loadGrades();
 
-        const coefficient =
-            Number(grade.coefficient) || 1;
-
-        total +=
-            Number(grade.grade) *
-            coefficient;
-
-        coefficients += coefficient;
-
-    });
-
-    const average =
-        total / coefficients;
-
-    const formatted =
-        average.toFixed(2);
-
-    setAverage(formatted);
-
-    const brevetEstimate =
-        document.getElementById(
-            "brevet-estimate"
-        );
-
-    const brevetBig =
-        document.getElementById(
-            "brevet-big"
-        );
-
-    if (brevetEstimate) {
-        brevetEstimate.textContent =
-            formatted;
+    if (currentPage === "notes") {
+        showNotes();
     }
 
-    if (brevetBig) {
-        brevetBig.textContent =
-            formatted;
-    }
-
-    updateProgress(average);
 }
 
 
-function setAverage(value) {
+/* =========================================================
+   RÉCOMPENSES DES NOTES
+   ========================================================= */
 
-    const generalAverage =
-        document.getElementById(
-            "general-average"
-        );
+function getGradeReward(grade) {
 
-    const averageCard =
-        document.getElementById(
-            "average-card"
-        );
+    const value =
+        Number(grade);
 
-    if (generalAverage) {
-        generalAverage.textContent =
-            value;
+
+    if (Number.isNaN(value)) {
+        return 0;
     }
 
-    if (averageCard) {
-        averageCard.textContent =
-            value;
+
+    if (value < 10) {
+        return -500;
     }
+
+    if (value < 14) {
+        return -250;
+    }
+
+    if (value < 16) {
+        return -150;
+    }
+
+    if (value < 17) {
+        return 0;
+    }
+
+    if (value < 18.5) {
+        return 250;
+    }
+
+    if (value < 19.5) {
+        return 300;
+    }
+
+    return 350;
+
 }
 
 
-/* =========================
+function getRewardLabel(amount) {
+
+    if (amount > 0) {
+        return `+${amount} DH`;
+    }
+
+    if (amount < 0) {
+        return `${amount} DH`;
+    }
+
+    return "0 DH";
+
+}
+
+
+function setupGradeRewardPreview() {
+
+    const gradeInput =
+        document.getElementById("grade-input");
+
+    const preview =
+        document.getElementById(
+            "grade-money-preview"
+        );
+
+
+    if (!gradeInput || !preview) {
+        return;
+    }
+
+
+    const update = () => {
+
+        const value =
+            Number(gradeInput.value);
+
+
+        if (
+            Number.isNaN(value) ||
+            gradeInput.value === ""
+        ) {
+
+            preview.textContent =
+                "Récompense : 0 DH";
+
+            return;
+        }
+
+
+        const reward =
+            getGradeReward(value);
+
+
+        preview.textContent =
+            `Récompense : ${getRewardLabel(reward)}`;
+
+    };
+
+
+    gradeInput.addEventListener(
+        "input",
+        update
+    );
+
+}
+
+
+function resetGradeModal() {
+
+    document.getElementById(
+        "subject-input"
+    ).value = "";
+
+    document.getElementById(
+        "grade-input"
+    ).value = "";
+
+    document.getElementById(
+        "coefficient-input"
+    ).value = "1";
+
+    document.getElementById(
+        "date-input"
+    ).value =
+        getTodayISO();
+
+
+    document.getElementById(
+        "grade-money-account"
+    ).value = "bank";
+
+
+    document.getElementById(
+        "grade-message"
+    ).textContent = "";
+
+    document.getElementById(
+        "grade-money-preview"
+    ).textContent =
+        "Récompense : 0 DH";
+
+}
+
+
+function openGradeModal() {
+
+    resetGradeModal();
+
+    modal.classList.remove(
+        "hidden"
+    );
+
+}
+
+
+function closeGradeModal() {
+
+    modal.classList.add(
+        "hidden"
+    );
+
+}
+
+
+async function saveGrade() {
+
+    const subject =
+        document
+            .getElementById("subject-input")
+            .value
+            .trim();
+
+
+    const grade =
+        Number(
+            document
+                .getElementById("grade-input")
+                .value
+        );
+
+
+    const coefficient =
+        Number(
+            document
+                .getElementById("coefficient-input")
+                .value
+        ) || 1;
+
+
+    const type =
+        document
+            .getElementById("type-input")
+            .value;
+
+
+    const date =
+        document
+            .getElementById("date-input")
+            .value;
+
+
+    const account =
+        document
+            .getElementById(
+                "grade-money-account"
+            )
+            .value;
+
+
+    const message =
+        document.getElementById(
+            "grade-message"
+        );
+
+
+    message.style.color =
+        "#dc2626";
+
+
+    if (
+        !subject ||
+        Number.isNaN(grade) ||
+        grade < 0 ||
+        grade > 20
+    ) {
+
+        message.textContent =
+            "Vérifie la matière et la note.";
+
+        return;
+    }
+
+
+    if (
+        coefficient <= 0
+    ) {
+
+        message.textContent =
+            "Le coefficient doit être supérieur à 0.";
+
+        return;
+    }
+
+
+    const reward =
+        getGradeReward(grade);
+
+
+    const {
+        data: insertedGrade,
+        error
+    } = await supabaseClient
+        .from("grades")
+        .insert({
+            user_id: currentUser.id,
+            subject,
+            grade,
+            coefficient,
+            grade_type: type,
+            grade_date: date || null
+        })
+        .select()
+        .single();
+
+
+    if (error) {
+
+        console.error(error);
+
+        message.textContent =
+            "Erreur : " +
+            error.message;
+
+        return;
+    }
+
+
+    if (reward !== 0) {
+
+        const {
+            error: moneyError
+        } = await addMoneyTransaction({
+
+            amount: reward,
+
+            accountType:
+                account,
+
+            transactionType:
+                "grade",
+
+            description:
+                `Récompense note : ${subject} — ${grade}/20`,
+
+            transactionDate:
+                date || getTodayISO(),
+
+            silent: true
+
+        });
+
+
+        if (moneyError) {
+
+            console.error(
+                moneyError
+            );
+
+            message.textContent =
+                "La note a été ajoutée, mais la récompense n'a pas pu être enregistrée.";
+
+            await loadGrades();
+
+            return;
+        }
+
+    }
+
+
+    message.style.color =
+        "#16a34a";
+
+    message.textContent =
+        `Note ajoutée. Récompense : ${getRewardLabel(reward)}`;
+
+
+    await loadGrades();
+    await loadMoney();
+
+
+    setTimeout(
+        closeGradeModal,
+        700
+    );
+
+}
+
+
+/* =========================================================
    OBJECTIF
-========================= */
+   ========================================================= */
 
 function loadTarget() {
 
     if (!currentUser) return;
+
 
     const target =
         localStorage.getItem(
             `brevettrack_target_${currentUser.id}`
         );
 
-    if (!target) return;
+
+    if (!target) {
+
+        updateProgress(
+            Number(
+                document.getElementById(
+                    "average-card"
+                ).textContent
+            )
+        );
+
+        return;
+    }
+
 
     const value =
-        Number(target).toFixed(1);
+        Number(target);
+
 
     const targetAverage =
         document.getElementById(
             "target-average"
         );
 
-    const targetCircle =
+    const circle =
         document.getElementById(
             "target-circle-value"
         );
-
-    const targetInput =
-        document.getElementById(
-            "target-input"
-        );
-
-    if (targetAverage) {
-        targetAverage.textContent =
-            value;
-    }
-
-    if (targetCircle) {
-        targetCircle.textContent =
-            value;
-    }
-
-    if (targetInput) {
-        targetInput.value =
-            target;
-    }
-
-    const average =
-        Number(
-            document.getElementById(
-                "average-card"
-            )?.textContent
-        );
-
-    updateProgress(average);
-}
-
-
-function saveTarget() {
-
-    if (!currentUser) return;
 
     const input =
         document.getElementById(
             "target-input"
         );
 
-    if (!input) return;
+
+    if (targetAverage) {
+        targetAverage.textContent =
+            value.toFixed(1);
+    }
+
+    if (circle) {
+        circle.textContent =
+            value.toFixed(1);
+    }
+
+    if (input) {
+        input.value = value;
+    }
+
+
+    const average =
+        Number(
+            document.getElementById(
+                "average-card"
+            ).textContent
+        );
+
+
+    updateProgress(
+        average
+    );
+
+}
+
+
+function saveTarget() {
 
     const target =
-        Number(input.value);
+        Number(
+            document.getElementById(
+                "target-input"
+            ).value
+        );
+
 
     if (
-        isNaN(target) ||
+        Number.isNaN(target) ||
         target < 0 ||
         target > 20
     ) {
@@ -468,45 +1032,47 @@ function saveTarget() {
         return;
     }
 
+
     localStorage.setItem(
         `brevettrack_target_${currentUser.id}`,
         target
     );
+
 
     const targetAverage =
         document.getElementById(
             "target-average"
         );
 
-    const targetCircle =
+    const circle =
         document.getElementById(
             "target-circle-value"
         );
 
-    if (targetAverage) {
-        targetAverage.textContent =
-            target.toFixed(1);
-    }
 
-    if (targetCircle) {
-        targetCircle.textContent =
-            target.toFixed(1);
-    }
+    targetAverage.textContent =
+        target.toFixed(1);
+
+    circle.textContent =
+        target.toFixed(1);
+
 
     const average =
         Number(
             document.getElementById(
                 "average-card"
-            )?.textContent
+            ).textContent
         );
 
-    updateProgress(average);
+
+    updateProgress(
+        average
+    );
+
 }
 
 
 function updateProgress(average) {
-
-    if (!currentUser) return;
 
     const target =
         Number(
@@ -515,33 +1081,36 @@ function updateProgress(average) {
             )
         );
 
-    const progressBar =
+
+    const bar =
         document.getElementById(
             "progress-bar"
         );
 
-    const progressText =
+    const text =
         document.getElementById(
             "progress-text"
         );
 
-    if (!progressBar || !progressText) {
-        return;
-    }
 
     if (
+        !bar ||
+        !text ||
         !target ||
-        isNaN(average)
+        Number.isNaN(average)
     ) {
 
-        progressBar.style.width =
-            "0%";
+        if (bar) {
+            bar.style.width = "0%";
+        }
 
-        progressText.textContent =
-            "—";
+        if (text) {
+            text.textContent = "—";
+        }
 
         return;
     }
+
 
     const percentage =
         Math.min(
@@ -549,220 +1118,1109 @@ function updateProgress(average) {
             100
         );
 
-    progressBar.style.width =
+
+    bar.style.width =
         `${percentage}%`;
 
-    progressText.textContent =
+    text.textContent =
         `${Math.round(percentage)}%`;
+
 }
 
 
-/* =========================
-   MODALE NOTE
-========================= */
+/* =========================================================
+   BREVET
+   ========================================================= */
 
-function openGradeModal() {
+function updateBrevet(average) {
+
+    if (
+        average === undefined
+    ) {
+
+        const raw =
+            document.getElementById(
+                "average-card"
+            )?.textContent;
+
+        average =
+            Number(raw);
+
+    }
+
+
+    const estimate =
+        document.getElementById(
+            "brevet-estimate"
+        );
+
+    const big =
+        document.getElementById(
+            "brevet-big"
+        );
+
+
+    if (
+        Number.isNaN(average)
+    ) {
+
+        if (estimate) {
+            estimate.textContent = "—";
+        }
+
+        if (big) {
+            big.textContent = "—";
+        }
+
+        return;
+    }
+
+
+    if (estimate) {
+        estimate.textContent =
+            average.toFixed(2);
+    }
+
+    if (big) {
+        big.textContent =
+            average.toFixed(2);
+    }
+
+
+    const pageEstimate =
+        document.getElementById(
+            "brevet-estimate-page"
+        );
+
+    const points =
+        document.getElementById(
+            "brevet-points"
+        );
+
+
+    if (pageEstimate) {
+        pageEstimate.textContent =
+            average.toFixed(2);
+    }
+
+    if (points) {
+        points.textContent =
+            Math.round(
+                (average / 20) * 800
+            );
+    }
+
+}
+
+
+/* =========================================================
+   ARGENT — SUPABASE
+   ========================================================= */
+
+async function loadMoney() {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("money_transactions")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order(
+            "transaction_date",
+            {
+                ascending: false
+            }
+        )
+        .order(
+            "created_at",
+            {
+                ascending: false
+            }
+        );
+
+
+    if (error) {
+
+        console.error(
+            "Erreur chargement argent :",
+            error
+        );
+
+        moneyTransactions = [];
+
+        updateMoneyUI();
+
+        return;
+    }
+
+
+    moneyTransactions =
+        data || [];
+
+
+    updateMoneyUI();
+
+}
+
+
+function accountLabel(account) {
+
+    if (account === "bank") {
+        return "Banque";
+    }
+
+    if (account === "savings") {
+        return "Épargne";
+    }
+
+    if (account === "cash") {
+        return "Espèces";
+    }
+
+    return "Autre";
+
+}
+
+
+function transactionTypeLabel(type) {
+
+    if (type === "grade") {
+        return "Récompense de note";
+    }
+
+    if (type === "encouragement") {
+        return "Encouragement";
+    }
+
+    if (type === "observation") {
+        return "Observation";
+    }
+
+    if (type === "initial_balance") {
+        return "Solde initial";
+    }
+
+    return "Opération manuelle";
+
+}
+
+
+function calculateMoneyBalances() {
+
+    const balances = {
+        bank: 0,
+        savings: 0,
+        cash: 0
+    };
+
+
+    moneyTransactions.forEach(transaction => {
+
+        const account =
+            transaction.account_type;
+
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                balances,
+                account
+            )
+        ) {
+
+            balances[account] +=
+                Number(
+                    transaction.amount
+                ) || 0;
+
+        }
+
+    });
+
+
+    balances.total =
+        balances.bank +
+        balances.savings +
+        balances.cash;
+
+
+    return balances;
+
+}
+
+
+function formatMoney(amount) {
+
+    const value =
+        Number(amount) || 0;
+
+
+    return (
+        value.toLocaleString(
+            "fr-FR",
+            {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }
+        ) +
+        " DH"
+    );
+
+}
+
+
+function updateMoneyUI() {
+
+    const balances =
+        calculateMoneyBalances();
+
+
+    const values = {
+
+        "money-total":
+            balances.total,
+
+        "money-page-total":
+            balances.total,
+
+        "money-bank":
+            balances.bank,
+
+        "money-savings":
+            balances.savings,
+
+        "money-cash":
+            balances.cash
+
+    };
+
+
+    Object.entries(values)
+        .forEach(([id, value]) => {
+
+            const element =
+                document.getElementById(id);
+
+            if (element) {
+                element.textContent =
+                    formatMoney(value);
+            }
+
+        });
+
+
+    const dashboardMoney =
+        document.getElementById(
+            "money-total"
+        );
+
+    if (dashboardMoney) {
+        dashboardMoney.textContent =
+            formatMoney(
+                balances.total
+            );
+    }
+
+
+    renderMoneyHistory();
+
+}
+
+
+function renderMoneyHistory() {
+
+    const container =
+        document.getElementById(
+            "money-list"
+        );
+
+
+    if (!container) return;
+
+
+    if (!moneyTransactions.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">€</div>
+                <h3>Aucun mouvement</h3>
+                <p>Ton historique apparaîtra ici.</p>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        moneyTransactions
+            .map(transaction => {
+
+                const amount =
+                    Number(
+                        transaction.amount
+                    ) || 0;
+
+
+                const amountClass =
+                    amount > 0
+                        ? "money-positive"
+                        : amount < 0
+                            ? "money-negative"
+                            : "money-neutral";
+
+
+                const sign =
+                    amount > 0
+                        ? "+"
+                        : "";
+
+
+                return `
+                    <div class="money-row">
+
+                        <div>
+
+                            <div class="money-description">
+                                ${escapeHTML(
+                                    transaction.description ||
+                                    transactionTypeLabel(
+                                        transaction.transaction_type
+                                    )
+                                )}
+                            </div>
+
+                            <div class="money-meta">
+                                ${transactionTypeLabel(
+                                    transaction.transaction_type
+                                )}
+                                ·
+                                ${formatDate(
+                                    transaction.transaction_date
+                                )}
+                            </div>
+
+                        </div>
+
+
+                        <div class="money-account">
+                            ${accountLabel(
+                                transaction.account_type
+                            )}
+                        </div>
+
+
+                        <div class="money-amount ${amountClass}">
+                            ${sign}${formatMoney(amount)}
+                        </div>
+
+                    </div>
+                `;
+
+            })
+            .join("");
+
+}
+
+
+async function addMoneyTransaction({
+
+    amount,
+    accountType,
+    transactionType,
+    description,
+    transactionDate,
+    silent = false
+
+}) {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("money_transactions")
+        .insert({
+
+            user_id:
+                currentUser.id,
+
+            amount:
+                Number(amount),
+
+            account_type:
+                accountType,
+
+            transaction_type:
+                transactionType,
+
+            description:
+                description || null,
+
+            transaction_date:
+                transactionDate ||
+                getTodayISO()
+
+        })
+        .select()
+        .single();
+
+
+    if (error) {
+
+        if (!silent) {
+
+            console.error(error);
+
+        }
+
+        return {
+            data: null,
+            error
+        };
+
+    }
+
+
+    moneyTransactions.unshift(
+        data
+    );
+
+
+    updateMoneyUI();
+
+
+    return {
+        data,
+        error: null
+    };
+
+}
+
+
+/* =========================================================
+   OPÉRATIONS ARGENT
+   ========================================================= */
+
+function openMoneyModal() {
 
     const modal =
         document.getElementById(
-            "grade-modal"
+            "money-modal"
         );
 
+
     if (!modal) return;
+
+
+    document.getElementById(
+        "money-amount"
+    ).value = "";
+
+
+    document.getElementById(
+        "money-account"
+    ).value = "bank";
+
+
+    document.getElementById(
+        "money-type"
+    ).value = "manual";
+
+
+    document.getElementById(
+        "money-description"
+    ).value = "";
+
+
+    document.getElementById(
+        "money-message"
+    ).textContent = "";
+
 
     modal.classList.remove(
         "hidden"
     );
 
-    const dateInput =
-        document.getElementById(
-            "date-input"
-        );
-
-    if (dateInput) {
-
-        dateInput.value =
-            new Date()
-                .toISOString()
-                .split("T")[0];
-
-    }
 }
 
 
-function closeGradeModal() {
+function closeMoneyModal() {
 
-    const modal =
-        document.getElementById(
-            "grade-modal"
+    document
+        .getElementById(
+            "money-modal"
+        )
+        ?.classList.add(
+            "hidden"
         );
 
-    if (!modal) return;
-
-    modal.classList.add(
-        "hidden"
-    );
 }
 
 
-/* =========================
-   ENREGISTRER NOTE
-========================= */
+async function saveMoney() {
 
-async function saveGrade() {
-
-    if (!currentUser) return;
-
-    const subject =
-        document
-            .getElementById(
-                "subject-input"
-            )
-            ?.value
-            .trim();
-
-    const grade =
+    const amount =
         Number(
             document.getElementById(
-                "grade-input"
-            )?.value
+                "money-amount"
+            ).value
         );
 
-    const coefficient =
-        Number(
-            document.getElementById(
-                "coefficient-input"
-            )?.value
-        );
+
+    const account =
+        document.getElementById(
+            "money-account"
+        ).value;
+
 
     const type =
         document.getElementById(
-            "type-input"
-        )?.value || "Note";
+            "money-type"
+        ).value;
 
-    const date =
+
+    const description =
         document.getElementById(
-            "date-input"
-        )?.value;
+            "money-description"
+        ).value.trim();
+
 
     const message =
         document.getElementById(
-            "grade-message"
+            "money-message"
         );
 
+
     if (
-        !subject ||
-        isNaN(grade) ||
-        grade < 0 ||
-        grade > 20
+        Number.isNaN(amount) ||
+        amount === 0
     ) {
 
-        if (message) {
-            message.textContent =
-                "Vérifie la matière et la note.";
-        }
+        message.textContent =
+            "Entre un montant différent de 0.";
 
         return;
     }
 
-    const {
-        error
-    } = await supabaseClient
-        .from("grades")
-        .insert({
 
-            user_id: currentUser.id,
-            subject,
-            grade,
-            coefficient:
-                coefficient || 1,
-            grade_type: type,
-            grade_date:
-                date || null
+    let finalAmount =
+        amount;
+
+
+    if (
+        type === "encouragement"
+    ) {
+
+        finalAmount = 100;
+
+    } else if (
+        type === "observation"
+    ) {
+
+        finalAmount = -150;
+
+    }
+
+
+    let finalDescription =
+        description;
+
+
+    if (!finalDescription) {
+
+        finalDescription =
+            transactionTypeLabel(type);
+
+    }
+
+
+    const result =
+        await addMoneyTransaction({
+
+            amount:
+                finalAmount,
+
+            accountType:
+                account,
+
+            transactionType:
+                type,
+
+            description:
+                finalDescription,
+
+            transactionDate:
+                getTodayISO(),
+
+            silent: false
 
         });
 
-    if (error) {
 
-        console.error(error);
+    if (result.error) {
 
-        if (message) {
-            message.textContent =
-                "Erreur : " +
-                error.message;
-        }
+        message.textContent =
+            "Erreur : " +
+            result.error.message;
 
         return;
     }
 
-    if (message) {
-        message.textContent =
-            "Note ajoutée !";
-    }
 
-    const subjectInput =
-        document.getElementById(
-            "subject-input"
-        );
+    message.style.color =
+        "#16a34a";
 
-    const gradeInput =
-        document.getElementById(
-            "grade-input"
-        );
+    message.textContent =
+        "Opération ajoutée.";
 
-    const coefficientInput =
-        document.getElementById(
-            "coefficient-input"
-        );
 
-    if (subjectInput) {
-        subjectInput.value = "";
-    }
+    await loadMoney();
 
-    if (gradeInput) {
-        gradeInput.value = "";
-    }
-
-    if (coefficientInput) {
-        coefficientInput.value = "1";
-    }
-
-    await loadGrades();
 
     setTimeout(
-        closeGradeModal,
+        closeMoneyModal,
         500
     );
+
 }
 
 
-/* =========================
-   SUPPRIMER NOTE
-========================= */
+/* =========================================================
+   SOLDES INITIAUX
+   ========================================================= */
 
-async function deleteGrade(id) {
+function openBalanceModal() {
 
-    if (!currentUser) return;
+    const balances =
+        calculateMoneyBalances();
+
+
+    document.getElementById(
+        "initial-bank"
+    ).value =
+        balances.bank;
+
+
+    document.getElementById(
+        "initial-savings"
+    ).value =
+        balances.savings;
+
+
+    document.getElementById(
+        "initial-cash"
+    ).value =
+        balances.cash;
+
+
+    document.getElementById(
+        "balance-message"
+    ).textContent = "";
+
+
+    document
+        .getElementById(
+            "balance-modal"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+}
+
+
+function closeBalanceModal() {
+
+    document
+        .getElementById(
+            "balance-modal"
+        )
+        ?.classList.add(
+            "hidden"
+        );
+
+}
+
+
+async function saveBalances() {
+
+    const bank =
+        Number(
+            document.getElementById(
+                "initial-bank"
+            ).value
+        ) || 0;
+
+
+    const savings =
+        Number(
+            document.getElementById(
+                "initial-savings"
+            ).value
+        ) || 0;
+
+
+    const cash =
+        Number(
+            document.getElementById(
+                "initial-cash"
+            ).value
+        ) || 0;
+
 
     if (
-        !confirm(
-            "Supprimer cette note ?"
-        )
+        bank < 0 ||
+        savings < 0 ||
+        cash < 0
     ) {
+
+        document.getElementById(
+            "balance-message"
+        ).textContent =
+            "Les soldes ne peuvent pas être négatifs.";
+
         return;
     }
+
+
+    /*
+       On calcule les soldes actuels puis on ajoute
+       uniquement la différence.
+    */
+
+    const current =
+        calculateMoneyBalances();
+
+
+    const differences = [
+
+        {
+            account: "bank",
+            difference:
+                bank - current.bank
+        },
+
+        {
+            account: "savings",
+            difference:
+                savings - current.savings
+        },
+
+        {
+            account: "cash",
+            difference:
+                cash - current.cash
+        }
+
+    ];
+
+
+    for (
+        const item of differences
+    ) {
+
+        if (
+            item.difference === 0
+        ) {
+            continue;
+        }
+
+
+        const result =
+            await addMoneyTransaction({
+
+                amount:
+                    item.difference,
+
+                accountType:
+                    item.account,
+
+                transactionType:
+                    "initial_balance",
+
+                description:
+                    `Mise à jour du solde ${accountLabel(item.account)}`,
+
+                transactionDate:
+                    getTodayISO(),
+
+                silent: true
+
+            });
+
+
+        if (result.error) {
+
+            document.getElementById(
+                "balance-message"
+            ).textContent =
+                "Erreur : " +
+                result.error.message;
+
+            return;
+        }
+
+    }
+
+
+    await loadMoney();
+
+
+    document.getElementById(
+        "balance-message"
+    ).style.color =
+        "#16a34a";
+
+
+    document.getElementById(
+        "balance-message"
+    ).textContent =
+        "Soldes enregistrés.";
+
+
+    setTimeout(
+        closeBalanceModal,
+        600
+    );
+
+}
+
+
+/* =========================================================
+   TODO — SUPABASE
+   ========================================================= */
+
+async function loadTodos() {
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("todos")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order(
+            "completed",
+            {
+                ascending: true
+            }
+        )
+        .order(
+            "due_at",
+            {
+                ascending: true,
+                nullsFirst: false
+            }
+        );
+
+
+    if (error) {
+
+        console.error(
+            "Erreur chargement tâches :",
+            error
+        );
+
+        todos = [];
+
+        return;
+    }
+
+
+    todos =
+        data || [];
+
+}
+
+
+function renderTodos() {
+
+    const container =
+        document.getElementById(
+            "todo-list"
+        );
+
+
+    if (!container) return;
+
+
+    if (!todos.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">✓</div>
+                <h3>Rien à faire</h3>
+                <p>Ajoute ton premier devoir ou ta première tâche.</p>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    const now =
+        Date.now();
+
+
+    container.innerHTML =
+        todos.map(todo => {
+
+            const due =
+                todo.due_at
+                    ? new Date(todo.due_at)
+                    : null;
+
+
+            const overdue =
+                due &&
+                due.getTime() < now &&
+                !todo.completed;
+
+
+            return `
+                <div class="
+                    todo-item
+                    ${todo.completed ? "completed" : ""}
+                    ${overdue ? "overdue" : ""}
+                ">
+
+                    <input
+                        class="todo-check"
+                        type="checkbox"
+                        data-todo-toggle="${todo.id}"
+                        ${todo.completed ? "checked" : ""}
+                    >
+
+
+                    <div class="todo-content">
+
+                        <div class="todo-title">
+                            ${escapeHTML(
+                                todo.title
+                            )}
+                        </div>
+
+                        <div class="todo-due">
+
+                            ${
+                                due
+                                    ? formatDateTime(
+                                        todo.due_at
+                                    )
+                                    : "Sans date"
+                            }
+
+                            ${
+                                overdue
+                                    ? " · En retard"
+                                    : ""
+                            }
+
+                        </div>
+
+                    </div>
+
+
+                    <button
+                        class="delete-todo"
+                        data-todo-delete="${todo.id}"
+                        type="button"
+                    >
+                        Supprimer
+                    </button>
+
+                </div>
+            `;
+
+        }).join("");
+
+
+    document
+        .querySelectorAll(
+            "[data-todo-toggle]"
+        )
+        .forEach(input => {
+
+            input.onchange = async () => {
+
+                await toggleTodo(
+                    input.dataset.todoToggle,
+                    input.checked
+                );
+
+            };
+
+        });
+
+
+    document
+        .querySelectorAll(
+            "[data-todo-delete]"
+        )
+        .forEach(button => {
+
+            button.onclick = async () => {
+
+                await deleteTodo(
+                    button.dataset.todoDelete
+                );
+
+            };
+
+        });
+
+}
+
+
+async function addTodo() {
+
+    const title =
+        document.getElementById(
+            "todo-title"
+        ).value.trim();
+
+
+    const dueAt =
+        document.getElementById(
+            "todo-date"
+        ).value;
+
+
+    if (!title) {
+
+        alert(
+            "Entre le nom de la tâche."
+        );
+
+        return;
+    }
+
 
     const {
         error
     } = await supabaseClient
-        .from("grades")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", currentUser.id);
+        .from("todos")
+        .insert({
+
+            user_id:
+                currentUser.id,
+
+            title,
+
+            due_at:
+                dueAt
+                    ? new Date(
+                        dueAt
+                    ).toISOString()
+                    : null,
+
+            completed:
+                false
+
+        });
+
 
     if (error) {
-
-        console.error(error);
 
         alert(
             "Erreur : " +
@@ -772,357 +2230,384 @@ async function deleteGrade(id) {
         return;
     }
 
-    await loadGrades();
+
+    document.getElementById(
+        "todo-title"
+    ).value = "";
+
+    document.getElementById(
+        "todo-date"
+    ).value = "";
+
+
+    await loadTodos();
+
+    renderTodos();
+
 }
 
 
-/* =========================
+async function toggleTodo(
+    id,
+    completed
+) {
+
+    const {
+        error
+    } = await supabaseClient
+        .from("todos")
+        .update({
+            completed
+        })
+        .eq(
+            "id",
+            id
+        )
+        .eq(
+            "user_id",
+            currentUser.id
+        );
+
+
+    if (error) {
+
+        console.error(error);
+
+        return;
+    }
+
+
+    const todo =
+        todos.find(
+            item => item.id === id
+        );
+
+
+    if (todo) {
+        todo.completed =
+            completed;
+    }
+
+
+    renderTodos();
+
+}
+
+
+async function deleteTodo(id) {
+
+    const {
+        error
+    } = await supabaseClient
+        .from("todos")
+        .delete()
+        .eq(
+            "id",
+            id
+        )
+        .eq(
+            "user_id",
+            currentUser.id
+        );
+
+
+    if (error) {
+
+        alert(
+            "Erreur : " +
+            error.message
+        );
+
+        return;
+    }
+
+
+    await loadTodos();
+
+    renderTodos();
+
+}
+
+
+/* =========================================================
+   PAGES
+   ========================================================= */
+
+function showPage(page) {
+
+    currentPage =
+        page;
+
+
+    document
+        .querySelectorAll(".page")
+        .forEach(section => {
+
+            section.classList.add(
+                "hidden"
+            );
+
+        });
+
+
+    const target =
+        document.getElementById(
+            `page-${page}`
+        );
+
+
+    if (target) {
+
+        target.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.page === page
+            );
+
+        });
+
+
+    const labels = {
+
+        dashboard:
+            "TABLEAU DE BORD",
+
+        notes:
+            "NOTES",
+
+        todo:
+            "À FAIRE",
+
+        brevet:
+            "BREVET",
+
+        calendar:
+            "CALENDRIER",
+
+        money:
+            "ARGENT"
+
+    };
+
+
+    const eyebrow =
+        document.getElementById(
+            "page-eyebrow"
+        );
+
+
+    if (eyebrow) {
+
+        eyebrow.textContent =
+            labels[page] ||
+            "BREVETTRACK";
+
+    }
+
+
+    if (page === "notes") {
+        renderAllGrades();
+    }
+
+    if (page === "todo") {
+        renderTodos();
+    }
+
+    if (page === "brevet") {
+        updateBrevet();
+    }
+
+    if (page === "calendar") {
+        renderCalendar();
+    }
+
+    if (page === "money") {
+        updateMoneyUI();
+    }
+
+
+    closeMobileMenu();
+
+}
+
+
+function renderAllGrades() {
+
+    const container =
+        document.getElementById(
+            "all-grades-list"
+        );
+
+
+    if (!container) return;
+
+
+    if (!grades.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">▤</div>
+                <h3>Aucune note</h3>
+                <p>Ajoute ta première note pour commencer.</p>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        grades
+            .map(createGradeHTML)
+            .join("");
+
+
+    attachGradeDeleteButtons();
+
+}
+
+
+/* =========================================================
+   CALENDRIER
+   ========================================================= */
+
+function renderCalendar() {
+
+    const container =
+        document.getElementById(
+            "calendar-list"
+        );
+
+
+    if (!container) return;
+
+
+    const input =
+        document.getElementById(
+            "calendar-date"
+        );
+
+
+    let selectedDate =
+        input?.value ||
+        getTodayISO();
+
+
+    if (input) {
+        input.value =
+            selectedDate;
+    }
+
+
+    const events =
+        todos
+            .filter(todo => {
+
+                if (!todo.due_at) {
+                    return false;
+                }
+
+                return (
+                    new Date(
+                        todo.due_at
+                    )
+                    .toISOString()
+                    .slice(0, 10)
+                    === selectedDate
+                );
+
+            });
+
+
+    if (!events.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                <div class="empty-icon">◷</div>
+                <h3>Aucun devoir ce jour</h3>
+                <p>Tu n'as aucune tâche prévue pour cette date.</p>
+            </div>
+        `;
+
+        return;
+    }
+
+
+    container.innerHTML =
+        events
+            .map(todo => {
+
+                return `
+                    <div class="calendar-event">
+
+                        <strong>
+                            ${escapeHTML(
+                                todo.title
+                            )}
+                        </strong>
+
+                        <div class="money-meta">
+                            ${formatDateTime(
+                                todo.due_at
+                            )}
+
+                            ${
+                                todo.completed
+                                    ? " · Terminé"
+                                    : ""
+                            }
+                        </div>
+
+                    </div>
+                `;
+
+            })
+            .join("");
+
+}
+
+
+/* =========================================================
    NAVIGATION
-========================= */
+   ========================================================= */
 
 function setupNavigation() {
 
-    if (navigationReady) return;
-
-    const buttons =
-        document.querySelectorAll(
-            ".nav-item"
-        );
-
-    if (!buttons.length) return;
-
-    navigationReady = true;
-
-    buttons.forEach(
-        (button, index) => {
+    document
+        .querySelectorAll(".nav-item")
+        .forEach(button => {
 
             button.addEventListener(
                 "click",
                 () => {
 
-                    buttons.forEach(
-                        btn =>
-                            btn.classList.remove(
-                                "active"
-                            )
+                    showPage(
+                        button.dataset.page
                     );
-
-                    button.classList.add(
-                        "active"
-                    );
-
-                    if (index === 0) {
-                        showDashboard();
-                    }
-
-                    if (index === 1) {
-                        showNotes();
-                    }
-
-                    if (index === 2) {
-                        showTodo();
-                    }
-
-                    if (index === 3) {
-                        showBrevet();
-                    }
-
-                    if (index === 4) {
-                        showCalendar();
-                    }
 
                 }
             );
 
-        }
-    );
+        });
+
 }
 
 
-/* =========================
-   DASHBOARD
-========================= */
-
-async function showDashboard() {
-
-    if (!currentUser) return;
-
-    /*
-       On recharge uniquement le contenu
-       du dashboard sans recharger toute
-       la page.
-    */
-
-    main.innerHTML = `
-
-        <section class="hero-card">
-
-            <div>
-
-                <p class="hero-label">
-                    TA PROGRESSION
-                </p>
-
-                <h2>
-                    Continue comme ça.
-                </h2>
-
-                <p class="hero-text">
-                    Suis tes résultats et prépare ton brevet sereinement.
-                </p>
-
-            </div>
-
-            <div class="hero-score">
-
-                <span id="general-average">
-                    —
-                </span>
-
-                <small>/20</small>
-
-                <p>
-                    Moyenne actuelle
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <section class="stats-grid">
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Moyenne générale</span>
-                    <span class="stat-icon">↗</span>
-                </div>
-
-                <strong id="average-card">
-                    —
-                </strong>
-
-                <p>
-                    sur 20
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Notes</span>
-                    <span class="stat-icon">▤</span>
-                </div>
-
-                <strong id="grades-count">
-                    0
-                </strong>
-
-                <p>
-                    notes enregistrées
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Objectif</span>
-                    <span class="stat-icon">◎</span>
-                </div>
-
-                <strong id="target-average">
-                    —
-                </strong>
-
-                <p>
-                    moyenne visée
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Brevet</span>
-                    <span class="stat-icon">★</span>
-                </div>
-
-                <strong id="brevet-estimate">
-                    —
-                </strong>
-
-                <p>
-                    estimation actuelle
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <section class="dashboard-grid">
-
-            <div class="card notes-card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2>
-                            Mes dernières notes
-                        </h2>
-
-                        <p>
-                            Ton historique de résultats
-                        </p>
-
-                    </div>
-
-                    <button
-                        id="add-grade-btn"
-                        class="primary-btn"
-                    >
-                        + Ajouter
-                    </button>
-
-                </div>
-
-                <div id="grades-list"></div>
-
-            </div>
-
-
-            <div class="card target-card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2>
-                            Objectif
-                        </h2>
-
-                        <p>
-                            Ta moyenne cible
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="target-circle">
-
-                    <span id="target-circle-value">
-                        —
-                    </span>
-
-                    <small>/20</small>
-
-                </div>
-
-
-                <label>
-                    Nouvel objectif
-                </label>
-
-                <div class="target-input">
-
-                    <input
-                        id="target-input"
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.1"
-                        placeholder="15"
-                    >
-
-                    <button id="target-btn">
-                        OK
-                    </button>
-
-                </div>
-
-
-                <div class="progress-area">
-
-                    <div class="progress-label">
-
-                        <span>
-                            Progression
-                        </span>
-
-                        <strong id="progress-text">
-                            —
-                        </strong>
-
-                    </div>
-
-                    <div class="progress">
-
-                        <div id="progress-bar"></div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <section class="card brevet-card">
-
-            <div class="brevet-left">
-
-                <div class="brevet-icon">
-                    ★
-                </div>
-
-                <div>
-
-                    <p class="eyebrow">
-                        OBJECTIF BREVET
-                    </p>
-
-                    <h2>
-                        Prépare ton diplôme
-                    </h2>
-
-                    <p>
-                        Ton estimation évoluera automatiquement avec tes notes.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div class="brevet-result">
-
-                <strong id="brevet-big">
-                    —
-                </strong>
-
-                <span>
-                    /20
-                </span>
-
-            </div>
-
-        </section>
-
-    `;
-
-    displayGrades(grades);
-    calculateAverage(grades);
-    loadTarget();
+/* =========================================================
+   BOUTONS
+   ========================================================= */
+
+function setupButtons() {
 
     document
         .getElementById(
@@ -1132,6 +2617,37 @@ async function showDashboard() {
             "click",
             openGradeModal
         );
+
+
+    document
+        .getElementById(
+            "add-grade-btn-notes"
+        )
+        ?.addEventListener(
+            "click",
+            openGradeModal
+        );
+
+
+    document
+        .getElementById(
+            "close-modal"
+        )
+        ?.addEventListener(
+            "click",
+            closeGradeModal
+        );
+
+
+    document
+        .getElementById(
+            "save-grade-btn"
+        )
+        ?.addEventListener(
+            "click",
+            saveGrade
+        );
+
 
     document
         .getElementById(
@@ -1141,1097 +2657,368 @@ async function showDashboard() {
             "click",
             saveTarget
         );
-}
 
-
-/* =========================
-   PAGE NOTES
-========================= */
-
-function showNotes() {
-
-    main.innerHTML = `
-
-        <section class="card">
-
-            <div class="card-header">
-
-                <div>
-
-                    <h2>
-                        Toutes mes notes
-                    </h2>
-
-                    <p>
-                        ${grades.length}
-                        note(s) enregistrée(s)
-                    </p>
-
-                </div>
-
-                <button
-                    id="notes-add-btn"
-                    class="primary-btn"
-                >
-                    + Ajouter une note
-                </button>
-
-            </div>
-
-            <div id="notes-page-list"></div>
-
-        </section>
-
-    `;
-
-    const container =
-        document.getElementById(
-            "notes-page-list"
-        );
-
-    if (!container) return;
-
-    if (grades.length === 0) {
-
-        container.innerHTML = `
-
-            <div class="empty">
-
-                <div class="empty-icon">
-                    ▤
-                </div>
-
-                <h3>
-                    Aucune note
-                </h3>
-
-                <p>
-                    Ajoute une note pour commencer.
-                </p>
-
-            </div>
-
-        `;
-
-    } else {
-
-        container.innerHTML =
-            grades.map(grade => {
-
-                const date =
-                    grade.grade_date
-                        ? new Date(
-                            grade.grade_date
-                        ).toLocaleDateString(
-                            "fr-FR"
-                        )
-                        : "—";
-
-                return `
-
-                    <div class="grade-row">
-
-                        <strong>
-                            ${escapeHTML(
-                                grade.subject
-                            )}
-                        </strong>
-
-                        <div class="grade-value">
-                            ${grade.grade}/20
-                        </div>
-
-                        <div>
-                            Coef.
-                            ${grade.coefficient || 1}
-                        </div>
-
-                        <div class="grade-type">
-                            ${escapeHTML(
-                                grade.grade_type ||
-                                "Note"
-                            )}
-                        </div>
-
-                        <div class="grade-date">
-                            ${date}
-                        </div>
-
-                        <button
-                            class="delete-grade"
-                            data-delete-grade="${grade.id}"
-                        >
-                            Supprimer
-                        </button>
-
-                    </div>
-
-                `;
-
-            }).join("");
-
-    }
 
     document
         .getElementById(
-            "notes-add-btn"
+            "add-money-btn"
         )
         ?.addEventListener(
             "click",
-            openGradeModal
+            openMoneyModal
         );
 
-    document
-        .querySelectorAll(
-            "[data-delete-grade]"
-        )
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                async () => {
-
-                    await deleteGrade(
-                        button.dataset.deleteGrade
-                    );
-
-                    showNotes();
-
-                }
-            );
-
-        });
-}
-
-
-/* =========================
-   PAGE À FAIRE
-========================= */
-
-function showTodo() {
-
-    const key =
-        `brevettrack_todos_${currentUser.id}`;
-
-    let todos =
-        JSON.parse(
-            localStorage.getItem(key) ||
-            "[]"
-        );
-
-    main.innerHTML = `
-
-        <section class="card">
-
-            <div class="card-header">
-
-                <div>
-
-                    <h2>
-                        À faire
-                    </h2>
-
-                    <p>
-                        Organise tes devoirs et révisions.
-                    </p>
-
-                </div>
-
-                <button
-                    id="add-todo"
-                    class="primary-btn"
-                >
-                    + Ajouter
-                </button>
-
-            </div>
-
-            <div id="todo-list"></div>
-
-        </section>
-
-    `;
-
-    function renderTodos() {
-
-        const list =
-            document.getElementById(
-                "todo-list"
-            );
-
-        if (!list) return;
-
-        if (todos.length === 0) {
-
-            list.innerHTML = `
-
-                <div class="empty">
-
-                    <div class="empty-icon">
-                        ✓
-                    </div>
-
-                    <h3>
-                        Rien à faire
-                    </h3>
-
-                    <p>
-                        Ajoute un devoir ou une révision.
-                    </p>
-
-                </div>
-
-            `;
-
-            return;
-        }
-
-        list.innerHTML =
-            todos.map(
-                (todo, index) => `
-
-                    <div class="grade-row">
-
-                        <strong>
-                            ${escapeHTML(
-                                todo.text
-                            )}
-                        </strong>
-
-                        <div>
-                            ${escapeHTML(
-                                todo.date ||
-                                "Sans date"
-                            )}
-                        </div>
-
-                        <div>
-                            ${escapeHTML(
-                                todo.priority ||
-                                "Normal"
-                            )}
-                        </div>
-
-                        <button
-                            class="delete-grade"
-                            data-todo="${index}"
-                        >
-                            Terminé
-                        </button>
-
-                    </div>
-
-                `
-            ).join("");
-
-        document
-            .querySelectorAll(
-                "[data-todo]"
-            )
-            .forEach(button => {
-
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        todos.splice(
-                            Number(
-                                button.dataset.todo
-                            ),
-                            1
-                        );
-
-                        localStorage.setItem(
-                            key,
-                            JSON.stringify(
-                                todos
-                            )
-                        );
-
-                        renderTodos();
-
-                    }
-                );
-
-            });
-    }
 
     document
         .getElementById(
-            "add-todo"
+            "close-money-modal"
+        )
+        ?.addEventListener(
+            "click",
+            closeMoneyModal
+        );
+
+
+    document
+        .getElementById(
+            "save-money-btn"
+        )
+        ?.addEventListener(
+            "click",
+            saveMoney
+        );
+
+
+    document
+        .getElementById(
+            "edit-balances-btn"
+        )
+        ?.addEventListener(
+            "click",
+            openBalanceModal
+        );
+
+
+    document
+        .getElementById(
+            "close-balance-modal"
+        )
+        ?.addEventListener(
+            "click",
+            closeBalanceModal
+        );
+
+
+    document
+        .getElementById(
+            "save-balances-btn"
+        )
+        ?.addEventListener(
+            "click",
+            saveBalances
+        );
+
+
+    document
+        .getElementById(
+            "add-todo-btn"
         )
         ?.addEventListener(
             "click",
             () => {
 
-                const text =
-                    prompt(
-                        "Quel est le devoir ?"
+                document
+                    .getElementById(
+                        "todo-form"
+                    )
+                    ?.classList.toggle(
+                        "hidden"
                     );
-
-                if (!text) return;
-
-                const date =
-                    prompt(
-                        "Date limite ?"
-                    );
-
-                todos.push({
-
-                    text,
-                    date: date || "",
-                    priority: "Normal"
-
-                });
-
-                localStorage.setItem(
-                    key,
-                    JSON.stringify(todos)
-                );
-
-                renderTodos();
 
             }
         );
 
-    renderTodos();
-}
 
-
-/* =========================
-   PAGE BREVET
-========================= */
-
-function showBrevet() {
-
-    const average =
-        document.getElementById(
-            "average-card"
-        )?.textContent || "—";
-
-    const target =
-        localStorage.getItem(
-            `brevettrack_target_${currentUser.id}`
-        ) || "—";
-
-    main.innerHTML = `
-
-        <section class="hero-card">
-
-            <div>
-
-                <p class="hero-label">
-                    ESTIMATION
-                </p>
-
-                <h2>
-                    Ton brevet
-                </h2>
-
-                <p class="hero-text">
-                    Cette estimation évoluera avec tes résultats.
-                </p>
-
-            </div>
-
-            <div class="hero-score">
-
-                <span>
-                    ${average}
-                </span>
-
-                <small>
-                    /20
-                </small>
-
-                <p>
-                    moyenne actuelle
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <section class="stats-grid">
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Moyenne</span>
-                    <span>↗</span>
-                </div>
-
-                <strong>
-                    ${average}
-                </strong>
-
-                <p>
-                    /20
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Objectif</span>
-                    <span>◎</span>
-                </div>
-
-                <strong>
-                    ${target}
-                </strong>
-
-                <p>
-                    /20
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Notes</span>
-                    <span>▤</span>
-                </div>
-
-                <strong>
-                    ${grades.length}
-                </strong>
-
-                <p>
-                    enregistrées
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <section class="card">
-
-            <h2>
-                Simulation
-            </h2>
-
-            <p
-                style="
-                    color:#7b8190;
-                    margin-top:8px;
-                "
-            >
-                Ajoute davantage de notes pour obtenir
-                une estimation plus représentative.
-            </p>
-
-        </section>
-
-    `;
-}
-
-
-/* =========================
-   CALENDRIER
-========================= */
-
-function showCalendar() {
-
-    const today =
-        new Date().toLocaleDateString(
-            "fr-FR",
-            {
-                weekday: "long",
-                day: "numeric",
-                month: "long"
-            }
+    document
+        .getElementById(
+            "save-todo-btn"
+        )
+        ?.addEventListener(
+            "click",
+            addTodo
         );
 
-    main.innerHTML = `
 
-        <section class="card">
-
-            <div class="card-header">
-
-                <div>
-
-                    <p class="eyebrow">
-                        CALENDRIER
-                    </p>
-
-                    <h2>
-                        ${today}
-                    </h2>
-
-                    <p>
-                        Organise tes contrôles,
-                        devoirs et révisions.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div class="empty">
-
-                <div class="empty-icon">
-                    ◷
-                </div>
-
-                <h3>
-                    Ton calendrier arrive
-                </h3>
-
-                <p>
-                    La prochaine étape sera
-                    d'ajouter les événements scolaires.
-                </p>
-
-            </div>
-
-        </section>
-
-    `;
-}
-
-
-/* =========================
-   BOUTONS
-========================= */
-
-function setupButtons() {
-
-    if (buttonsReady) return;
-
-    const addGrade =
-        document.getElementById(
-            "add-grade-btn"
+    document
+        .getElementById(
+            "calendar-date"
+        )
+        ?.addEventListener(
+            "change",
+            renderCalendar
         );
 
-    const closeModal =
-        document.getElementById(
-            "close-modal"
-        );
 
-    const saveGradeButton =
-        document.getElementById(
-            "save-grade-btn"
-        );
-
-    const targetButton =
-        document.getElementById(
-            "target-btn"
-        );
-
-    const logoutButton =
-        document.getElementById(
+    document
+        .getElementById(
             "logout-btn"
+        )
+        ?.addEventListener(
+            "click",
+            async () => {
+
+                await supabaseClient
+                    .auth
+                    .signOut();
+
+                location.reload();
+
+            }
         );
 
-    if (
-        !addGrade ||
-        !closeModal ||
-        !saveGradeButton ||
-        !targetButton ||
-        !logoutButton
-    ) {
-        return;
-    }
 
-    buttonsReady = true;
+    document
+        .getElementById(
+            "profile-btn"
+        )
+        ?.addEventListener(
+            "click",
+            () => {
 
-    addGrade.addEventListener(
-        "click",
-        openGradeModal
-    );
-
-    closeModal.addEventListener(
-        "click",
-        closeGradeModal
-    );
-
-    saveGradeButton.addEventListener(
-        "click",
-        saveGrade
-    );
-
-    targetButton.addEventListener(
-        "click",
-        saveTarget
-    );
-
-    logoutButton.addEventListener(
-        "click",
-        async () => {
-
-            await supabaseClient.auth.signOut();
-
-        }
-    );
-}
-
-
-/* =========================
-   AUTHENTIFICATION
-========================= */
-
-function bindAuthUI() {
-
-    if (authReady) return;
-
-    const loginTab =
-        document.getElementById(
-            "login-tab"
-        );
-
-    const signupTab =
-        document.getElementById(
-            "signup-tab"
-        );
-
-    const form =
-        document.getElementById(
-            "auth-form"
-        );
-
-    if (
-        !loginTab ||
-        !signupTab ||
-        !form
-    ) {
-        return;
-    }
-
-    authReady = true;
-
-    let mode = "login";
-
-
-    function setMode(newMode) {
-
-        mode = newMode;
-
-        loginTab.classList.toggle(
-            "active",
-            mode === "login"
-        );
-
-        signupTab.classList.toggle(
-            "active",
-            mode === "signup"
-        );
-
-        const title =
-            document.getElementById(
-                "auth-title"
-            );
-
-        const subtitle =
-            document.getElementById(
-                "auth-subtitle"
-            );
-
-        const nameField =
-            document.getElementById(
-                "name-field"
-            );
-
-        const submit =
-            document.getElementById(
-                "auth-submit"
-            );
-
-        const password =
-            document.getElementById(
-                "auth-password"
-            );
-
-        if (mode === "login") {
-
-            if (title) {
-                title.textContent =
-                    "Connexion";
-            }
-
-            if (subtitle) {
-                subtitle.textContent =
-                    "Connecte-toi à ton espace BrevetTrack.";
-            }
-
-            if (nameField) {
-                nameField.classList.add(
-                    "hidden"
-                );
-            }
-
-            if (submit) {
-                submit.textContent =
-                    "Se connecter";
-            }
-
-            if (password) {
-                password.autocomplete =
-                    "current-password";
-            }
-
-        } else {
-
-            if (title) {
-                title.textContent =
-                    "Créer un compte";
-            }
-
-            if (subtitle) {
-                subtitle.textContent =
-                    "Crée ton espace BrevetTrack.";
-            }
-
-            if (nameField) {
-                nameField.classList.remove(
-                    "hidden"
-                );
-            }
-
-            if (submit) {
-                submit.textContent =
-                    "Créer mon compte";
-            }
-
-            if (password) {
-                password.autocomplete =
-                    "new-password";
-            }
-
-        }
-
-        showAuthMessage(
-            "",
-            ""
-        );
-    }
-
-
-    loginTab.addEventListener(
-        "click",
-        () => setMode("login")
-    );
-
-    signupTab.addEventListener(
-        "click",
-        () => setMode("signup")
-    );
-
-
-    form.addEventListener(
-        "submit",
-        async event => {
-
-            event.preventDefault();
-
-            const name =
-                document
-                    .getElementById(
-                        "auth-name"
-                    )
-                    ?.value
-                    .trim();
-
-            const email =
-                document
-                    .getElementById(
-                        "auth-email"
-                    )
-                    ?.value
-                    .trim();
-
-            const password =
-                document
-                    .getElementById(
-                        "auth-password"
-                    )
-                    ?.value;
-
-            const submit =
-                document.getElementById(
-                    "auth-submit"
+                alert(
+                    `Connecté avec : ${currentUser.email}`
                 );
 
-            if (!email || !password) {
-
-                showAuthMessage(
-                    "Remplis ton email et ton mot de passe.",
-                    "error"
-                );
-
-                return;
             }
+        );
 
-            if (
-                mode === "signup" &&
-                !name
-            ) {
 
-                showAuthMessage(
-                    "Entre ton prénom.",
-                    "error"
-                );
+    document
+        .getElementById(
+            "type-input"
+        )
+        ?.addEventListener(
+            "change",
+            () => {}
+        );
 
-                return;
+
+    document
+        .getElementById(
+            "money-type"
+        )
+        ?.addEventListener(
+            "change",
+            event => {
+
+                const input =
+                    document.getElementById(
+                        "money-amount"
+                    );
+
+                if (
+                    event.target.value ===
+                    "encouragement"
+                ) {
+
+                    input.value = "100";
+
+                } else if (
+                    event.target.value ===
+                    "observation"
+                ) {
+
+                    input.value = "-150";
+
+                }
+
             }
+        );
 
-            if (password.length < 6) {
 
-                showAuthMessage(
-                    "Le mot de passe doit contenir au moins 6 caractères.",
-                    "error"
-                );
+    /*
+       Fermer les modales en cliquant
+       sur le fond.
+    */
 
-                return;
-            }
+    document
+        .querySelectorAll(".modal")
+        .forEach(modalElement => {
 
-            if (submit) {
-                submit.disabled = true;
-            }
+            modalElement.addEventListener(
+                "click",
+                event => {
 
-            showAuthMessage(
-                "Chargement...",
-                ""
-            );
+                    if (
+                        event.target ===
+                        modalElement
+                    ) {
 
-            try {
-
-                if (mode === "login") {
-
-                    const {
-                        data,
-                        error
-                    } =
-                        await supabaseClient.auth
-                            .signInWithPassword({
-
-                                email,
-                                password
-
-                            });
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    if (data.session) {
-
-                        await enterApp(
-                            data.session
+                        modalElement.classList.add(
+                            "hidden"
                         );
-
-                    }
-
-                } else {
-
-                    const {
-                        data,
-                        error
-                    } =
-                        await supabaseClient.auth
-                            .signUp({
-
-                                email,
-                                password,
-
-                                options: {
-                                    data: {
-                                        name
-                                    }
-                                }
-
-                            });
-
-                    if (error) {
-                        throw error;
-                    }
-
-                    if (data.user) {
-
-                        const {
-                            error:
-                            profileError
-                        } =
-                            await supabaseClient
-                                .from("profiles")
-                                .upsert({
-
-                                    id:
-                                        data.user.id,
-
-                                    name
-
-                                });
-
-                        if (profileError) {
-
-                            console.error(
-                                profileError
-                            );
-
-                        }
-
-                    }
-
-                    if (data.session) {
-
-                        await enterApp(
-                            data.session
-                        );
-
-                    } else {
-
-                        showAuthMessage(
-                            "Compte créé. Connecte-toi pour continuer.",
-                            "success"
-                        );
-
-                        setMode("login");
 
                     }
 
                 }
+            );
 
-            } catch (error) {
+        });
 
-                console.error(error);
+}
 
-                showAuthMessage(
-                    getAuthErrorMessage(
-                        error
-                    ),
-                    "error"
-                );
 
-            } finally {
+/* =========================================================
+   MENU MOBILE
+   ========================================================= */
 
-                if (submit) {
-                    submit.disabled = false;
-                }
+function setupMobileMenu() {
 
-            }
+    const button =
+        document.getElementById(
+            "mobile-menu-btn"
+        );
 
-        }
+    const sidebar =
+        document.getElementById(
+            "sidebar"
+        );
+
+    const overlay =
+        document.getElementById(
+            "mobile-overlay"
+        );
+
+
+    if (
+        !button ||
+        !sidebar ||
+        !overlay
+    ) {
+        return;
+    }
+
+
+    button.onclick =
+        toggleMobileMenu;
+
+
+    overlay.onclick =
+        closeMobileMenu;
+
+}
+
+
+function toggleMobileMenu() {
+
+    const sidebar =
+        document.getElementById(
+            "sidebar"
+        );
+
+    const overlay =
+        document.getElementById(
+            "mobile-overlay"
+        );
+
+    const button =
+        document.getElementById(
+            "mobile-menu-btn"
+        );
+
+
+    const open =
+        sidebar.classList.toggle(
+            "mobile-open"
+        );
+
+
+    overlay.classList.toggle(
+        "active",
+        open
     );
 
 
-    setMode("login");
+    button.setAttribute(
+        "aria-expanded",
+        open
+            ? "true"
+            : "false"
+    );
+
 }
 
 
-function showAuthMessage(
-    message,
-    type
-) {
+function closeMobileMenu() {
 
-    const element =
+    const sidebar =
         document.getElementById(
-            "auth-message"
+            "sidebar"
         );
 
-    if (!element) return;
+    const overlay =
+        document.getElementById(
+            "mobile-overlay"
+        );
 
-    element.textContent =
-        message || "";
+    const button =
+        document.getElementById(
+            "mobile-menu-btn"
+        );
 
-    element.className =
-        "auth-message";
 
-    if (type) {
-        element.classList.add(type);
-    }
+    sidebar?.classList.remove(
+        "mobile-open"
+    );
+
+    overlay?.classList.remove(
+        "active"
+    );
+
+    button?.setAttribute(
+        "aria-expanded",
+        "false"
+    );
+
 }
 
 
-function getAuthErrorMessage(error) {
+/* =========================================================
+   NOTIFICATIONS / SERVICE WORKER
+   ========================================================= */
 
-    const message =
-        error?.message || "";
-
-    const lower =
-        message.toLowerCase();
+async function registerServiceWorker() {
 
     if (
-        lower.includes(
-            "invalid login credentials"
-        )
+        !("serviceWorker" in navigator)
     ) {
-        return "Email ou mot de passe incorrect.";
+        return;
     }
 
-    if (
-        lower.includes(
-            "email not confirmed"
-        )
-    ) {
-        return "Ton email doit être confirmé.";
+
+    try {
+
+        await navigator.serviceWorker.register(
+            "/sw.js"
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Service worker :",
+            error
+        );
+
     }
 
-    if (
-        lower.includes(
-            "user already registered"
-        )
-    ) {
-        return "Ce compte existe déjà.";
-    }
-
-    if (
-        lower.includes(
-            "password"
-        )
-    ) {
-        return "Le mot de passe doit contenir au moins 6 caractères.";
-    }
-
-    return message ||
-        "Une erreur est survenue.";
 }
 
 
-/* =========================
-   AUTH SUPABASE
-========================= */
+/* =========================================================
+   UTILITAIRES
+   ========================================================= */
 
-supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-
-        if (
-            event === "SIGNED_IN" &&
-            session
-        ) {
-
-            await enterApp(session);
-
-            return;
-        }
-
-        if (
-            event === "SIGNED_OUT"
-        ) {
-
-            currentUser = null;
-            grades = [];
-
-            showAuth();
-
-        }
-
-    }
-);
-
-
-/* =========================
-   UTILITAIRE
-========================= */
-
-function escapeHTML(text) {
+function escapeHTML(value) {
 
     const div =
         document.createElement(
@@ -2239,14 +3026,157 @@ function escapeHTML(text) {
         );
 
     div.textContent =
-        String(text ?? "");
+        value ?? "";
 
     return div.innerHTML;
+
 }
 
 
-/* =========================
+function getTodayISO() {
+
+    const date =
+        new Date();
+
+
+    const year =
+        date.getFullYear();
+
+
+    const month =
+        String(
+            date.getMonth() + 1
+        )
+        .padStart(
+            2,
+            "0"
+        );
+
+
+    const day =
+        String(
+            date.getDate()
+        )
+        .padStart(
+            2,
+            "0"
+        );
+
+
+    return `${year}-${month}-${day}`;
+
+}
+
+
+function formatDate(dateValue) {
+
+    if (!dateValue) {
+        return "—";
+    }
+
+
+    const date =
+        new Date(dateValue);
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "—";
+    }
+
+
+    return date.toLocaleDateString(
+        "fr-FR"
+    );
+
+}
+
+
+function formatDateTime(dateValue) {
+
+    if (!dateValue) {
+        return "Sans date";
+    }
+
+
+    const date =
+        new Date(dateValue);
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return "Sans date";
+    }
+
+
+    return date.toLocaleString(
+        "fr-FR",
+        {
+            dateStyle: "short",
+            timeStyle: "short"
+        }
+    );
+
+}
+
+
+/* =========================================================
+   AUTH STATE
+   ========================================================= */
+
+supabaseClient.auth.onAuthStateChange(
+    async (event, session) => {
+
+        if (
+            event === "SIGNED_OUT"
+        ) {
+
+            currentUser = null;
+
+            location.reload();
+
+            return;
+        }
+
+
+        if (
+            session &&
+            !currentUser
+        ) {
+
+            currentUser =
+                session.user;
+
+            document
+                .getElementById(
+                    "auth-screen"
+                )
+                ?.classList.add(
+                    "hidden"
+                );
+
+            document
+                .getElementById(
+                    "app"
+                )
+                ?.classList.remove(
+                    "hidden"
+                );
+
+        }
+
+    }
+);
+
+
+/* =========================================================
    LANCEMENT
-========================= */
+   ========================================================= */
 
 startApp();
