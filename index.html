@@ -9,142 +9,356 @@
 
 <body>
 
+<div id="auth-screen">
+
+    <div class="auth-card">
+
+        <div class="auth-logo">
+            <div class="logo-icon">B</div>
+            <span>BrevetTrack</span>
+        </div>
+
+        <h1 id="auth-title">Connexion</h1>
+
+        <p id="auth-subtitle" class="auth-subtitle">
+            Connecte-toi à ton espace BrevetTrack.
+        </p>
+
+        <div class="auth-tabs">
+            <button id="login-tab" class="auth-tab active">
+                Connexion
+            </button>
+
+            <button id="signup-tab" class="auth-tab">
+                Créer un compte
+            </button>
+        </div>
+
+        <form id="auth-form">
+
+            <div id="name-field" class="auth-field hidden">
+                <label for="auth-name">Prénom</label>
+
+                <input
+                    id="auth-name"
+                    type="text"
+                    placeholder="Ton prénom"
+                    autocomplete="name"
+                >
+            </div>
+
+            <div class="auth-field">
+                <label for="auth-email">Email</label>
+
+                <input
+                    id="auth-email"
+                    type="email"
+                    placeholder="ton@email.com"
+                    autocomplete="email"
+                    required
+                >
+            </div>
+
+            <div class="auth-field">
+                <label for="auth-password">Mot de passe</label>
+
+                <input
+                    id="auth-password"
+                    type="password"
+                    placeholder="••••••••"
+                    autocomplete="current-password"
+                    required
+                >
+            </div>
+
+            <button
+                id="auth-submit"
+                class="auth-button"
+                type="submit"
+            >
+                Se connecter
+            </button>
+
+            <p id="auth-message" class="auth-message"></p>
+
+        </form>
+
+    </div>
+
+</div>
+
+
 <div id="app">
 
     <aside class="sidebar">
+
         <div class="logo">
             <div class="logo-icon">B</div>
             <span>BrevetTrack</span>
         </div>
 
         <nav>
-            <button class="nav-item active">⌂ <span>Tableau de bord</span></button>
-            <button class="nav-item">▣ <span>Mes notes</span></button>
-            <button class="nav-item">✓ <span>À faire</span></button>
-            <button class="nav-item">▤ <span>Brevet</span></button>
-            <button class="nav-item">◷ <span>Calendrier</span></button>
+
+            <button class="nav-item active">
+                ⌂
+                <span>Tableau de bord</span>
+            </button>
+
+            <button class="nav-item">
+                ▣
+                <span>Mes notes</span>
+            </button>
+
+            <button class="nav-item">
+                ✓
+                <span>À faire</span>
+            </button>
+
+            <button class="nav-item">
+                ▤
+                <span>Brevet</span>
+            </button>
+
+            <button class="nav-item">
+                ◷
+                <span>Calendrier</span>
+            </button>
+
         </nav>
 
         <div class="sidebar-bottom">
+
             <button id="logout-btn" class="logout-btn">
                 ↪ Déconnexion
             </button>
+
         </div>
+
     </aside>
+
 
     <div class="content">
 
         <header class="topbar">
+
             <div>
-                <p class="eyebrow">TABLEAU DE BORD</p>
-                <h1 id="welcome">Bonjour 👋</h1>
+                <p class="eyebrow">
+                    TABLEAU DE BORD
+                </p>
+
+                <h1 id="welcome">
+                    Bonjour
+                </h1>
             </div>
 
             <div class="profile">
-                <div class="avatar">C</div>
+                <div id="avatar" class="avatar">
+                    B
+                </div>
             </div>
+
         </header>
+
 
         <main>
 
             <section class="hero-card">
+
                 <div>
-                    <p class="hero-label">TA PROGRESSION</p>
-                    <h2>Continue comme ça.</h2>
+
+                    <p class="hero-label">
+                        TA PROGRESSION
+                    </p>
+
+                    <h2>
+                        Continue comme ça.
+                    </h2>
+
                     <p class="hero-text">
                         Suis tes résultats et prépare ton brevet sereinement.
                     </p>
+
                 </div>
 
                 <div class="hero-score">
-                    <span id="general-average">—</span>
+
+                    <span id="general-average">
+                        —
+                    </span>
+
                     <small>/20</small>
-                    <p>Moyenne actuelle</p>
+
+                    <p>
+                        Moyenne actuelle
+                    </p>
+
                 </div>
+
             </section>
+
 
             <section class="stats-grid">
 
                 <div class="stat-card">
+
                     <div class="stat-top">
                         <span>Moyenne générale</span>
                         <span class="stat-icon">↗</span>
                     </div>
-                    <strong id="average-card">—</strong>
-                    <p>sur 20</p>
+
+                    <strong id="average-card">
+                        —
+                    </strong>
+
+                    <p>
+                        sur 20
+                    </p>
+
                 </div>
 
+
                 <div class="stat-card">
+
                     <div class="stat-top">
                         <span>Notes</span>
                         <span class="stat-icon">▤</span>
                     </div>
-                    <strong id="grades-count">0</strong>
-                    <p>notes enregistrées</p>
+
+                    <strong id="grades-count">
+                        0
+                    </strong>
+
+                    <p>
+                        notes enregistrées
+                    </p>
+
                 </div>
 
+
                 <div class="stat-card">
+
                     <div class="stat-top">
                         <span>Objectif</span>
                         <span class="stat-icon">◎</span>
                     </div>
-                    <strong id="target-average">—</strong>
-                    <p>moyenne visée</p>
+
+                    <strong id="target-average">
+                        —
+                    </strong>
+
+                    <p>
+                        moyenne visée
+                    </p>
+
                 </div>
 
+
                 <div class="stat-card">
+
                     <div class="stat-top">
                         <span>Brevet</span>
                         <span class="stat-icon">★</span>
                     </div>
-                    <strong id="brevet-estimate">—</strong>
-                    <p>estimation actuelle</p>
+
+                    <strong id="brevet-estimate">
+                        —
+                    </strong>
+
+                    <p>
+                        estimation actuelle
+                    </p>
+
                 </div>
 
             </section>
+
 
             <section class="dashboard-grid">
 
                 <div class="card notes-card">
 
                     <div class="card-header">
+
                         <div>
-                            <h2>Mes dernières notes</h2>
-                            <p>Ton historique de résultats</p>
+
+                            <h2>
+                                Mes dernières notes
+                            </h2>
+
+                            <p>
+                                Ton historique de résultats
+                            </p>
+
                         </div>
 
-                        <button id="add-grade-btn" class="primary-btn">
+                        <button
+                            id="add-grade-btn"
+                            class="primary-btn"
+                        >
                             + Ajouter
                         </button>
+
                     </div>
 
                     <div id="grades-list">
+
                         <div class="empty">
-                            <div class="empty-icon">▤</div>
-                            <h3>Aucune note</h3>
-                            <p>Ajoute ta première note pour commencer.</p>
+
+                            <div class="empty-icon">
+                                ▤
+                            </div>
+
+                            <h3>
+                                Aucune note
+                            </h3>
+
+                            <p>
+                                Ajoute ta première note pour commencer.
+                            </p>
+
                         </div>
+
                     </div>
 
                 </div>
 
+
                 <div class="card target-card">
 
                     <div class="card-header">
+
                         <div>
-                            <h2>Objectif</h2>
-                            <p>Ta moyenne cible</p>
+
+                            <h2>
+                                Objectif
+                            </h2>
+
+                            <p>
+                                Ta moyenne cible
+                            </p>
+
                         </div>
+
                     </div>
+
 
                     <div class="target-circle">
-                        <span id="target-circle-value">—</span>
+
+                        <span id="target-circle-value">
+                            —
+                        </span>
+
                         <small>/20</small>
+
                     </div>
 
-                    <label>Nouvel objectif</label>
+
+                    <label>
+                        Nouvel objectif
+                    </label>
 
                     <div class="target-input">
+
                         <input
                             id="target-input"
                             type="number"
@@ -154,41 +368,77 @@
                             placeholder="15"
                         >
 
-                        <button id="target-btn">OK</button>
+                        <button id="target-btn">
+                            OK
+                        </button>
+
                     </div>
 
+
                     <div class="progress-area">
+
                         <div class="progress-label">
-                            <span>Progression</span>
-                            <strong id="progress-text">—</strong>
+
+                            <span>
+                                Progression
+                            </span>
+
+                            <strong id="progress-text">
+                                —
+                            </strong>
+
                         </div>
 
                         <div class="progress">
+
                             <div id="progress-bar"></div>
+
                         </div>
+
                     </div>
 
                 </div>
 
             </section>
 
+
             <section class="card brevet-card">
 
                 <div class="brevet-left">
-                    <div class="brevet-icon">★</div>
+
+                    <div class="brevet-icon">
+                        ★
+                    </div>
 
                     <div>
-                        <p class="eyebrow">OBJECTIF BREVET</p>
-                        <h2>Prépare ton diplôme</h2>
+
+                        <p class="eyebrow">
+                            OBJECTIF BREVET
+                        </p>
+
+                        <h2>
+                            Prépare ton diplôme
+                        </h2>
+
                         <p>
                             Ton estimation évoluera automatiquement avec tes notes.
                         </p>
+
                     </div>
+
                 </div>
 
+
                 <div class="brevet-result">
-                    <strong id="brevet-big">—</strong>
-                    <span>/20</span>
+
+                    <strong id="brevet-big">
+                        —
+                    </strong>
+
+                    <span>
+                        /20
+                    </span>
+
                 </div>
 
             </section>
@@ -196,6 +446,7 @@
         </main>
 
     </div>
+
 </div>
 
 
@@ -203,42 +454,119 @@
 
     <div class="modal-card">
 
-        <button id="close-modal" class="modal-close">×</button>
+        <button
+            id="close-modal"
+            class="modal-close"
+        >
+            ×
+        </button>
 
-        <p class="eyebrow">NOUVELLE NOTE</p>
-        <h2>Ajouter une note</h2>
+        <p class="eyebrow">
+            NOUVELLE NOTE
+        </p>
+
+        <h2>
+            Ajouter une note
+        </h2>
+
         <p class="modal-description">
             Entre les informations de ton évaluation.
         </p>
 
-        <label>Matière</label>
-        <input id="subject-input" type="text" placeholder="Mathématiques">
 
-        <label>Note</label>
-        <input id="grade-input" type="number" min="0" max="20" step="0.01" placeholder="16">
+        <label>
+            Matière
+        </label>
+
+        <input
+            id="subject-input"
+            type="text"
+            placeholder="Mathématiques"
+        >
+
+
+        <label>
+            Note
+        </label>
+
+        <input
+            id="grade-input"
+            type="number"
+            min="0"
+            max="20"
+            step="0.01"
+            placeholder="16"
+        >
+
 
         <div class="two-columns">
-            <div>
-                <label>Coefficient</label>
-                <input id="coefficient-input" type="number" min="0.1" step="0.1" value="1">
-            </div>
 
             <div>
-                <label>Type</label>
-                <select id="type-input">
-                    <option value="Contrôle">Contrôle</option>
-                    <option value="Devoir">Devoir</option>
-                    <option value="DS">DS</option>
-                    <option value="Examen">Examen</option>
-                    <option value="Oral">Oral</option>
-                </select>
+
+                <label>
+                    Coefficient
+                </label>
+
+                <input
+                    id="coefficient-input"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value="1"
+                >
+
             </div>
+
+
+            <div>
+
+                <label>
+                    Type
+                </label>
+
+                <select id="type-input">
+
+                    <option value="Contrôle">
+                        Contrôle
+                    </option>
+
+                    <option value="Devoir">
+                        Devoir
+                    </option>
+
+                    <option value="DS">
+                        DS
+                    </option>
+
+                    <option value="Examen">
+                        Examen
+                    </option>
+
+                    <option value="Oral">
+                        Oral
+                    </option>
+
+                </select>
+
+            </div>
+
         </div>
 
-        <label>Date</label>
-        <input id="date-input" type="date">
 
-        <button id="save-grade-btn" class="save-btn">
+        <label>
+            Date
+        </label>
+
+        <input
+            id="date-input"
+            type="date"
+        >
+
+
+        <button
+            id="save-grade-btn"
+            class="save-btn"
+        >
             Ajouter la note
         </button>
 
