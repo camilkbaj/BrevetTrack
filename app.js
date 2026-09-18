@@ -1,5 +1,6 @@
 const SUPABASE_URL = "https://maypmuwxpqepijufjhhb.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1MPnN42PeTl9MkGK1T1qeQ_nOx_3Q1L";
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable_1MPnN42PeTl9MkGK1T1qeQ_nOx_3Q1L";
 
 const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
@@ -8,18 +9,18 @@ const supabaseClient = window.supabase.createClient(
 
 let currentUser = null;
 let grades = [];
-let todos = [];
 let moneyTransactions = [];
+let todos = [];
 
-let currentPage = "dashboard";
-
-const main = document.getElementById("main");
+const main = document.querySelector("main");
 const modal = document.getElementById("grade-modal");
 
 
-/* =========================================================
-   DÉMARRAGE
-   ========================================================= */
+// =========================================================
+// DÉMARRAGE
+// =========================================================
+
+document.addEventListener("DOMContentLoaded", startApp);
 
 async function startApp() {
 
@@ -28,292 +29,93 @@ async function startApp() {
     } = await supabaseClient.auth.getSession();
 
     if (!session) {
-
-        document.getElementById("auth-screen").classList.remove("hidden");
-        document.getElementById("app").classList.add("hidden");
-
-        setupAuth();
-
+        window.location.href = "index.html";
         return;
     }
 
     currentUser = session.user;
 
-    document.getElementById("auth-screen").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-
     await loadProfile();
     await loadGrades();
-    await loadTodos();
     await loadMoney();
+    await loadTodos();
+
+    loadTarget();
 
     setupNavigation();
     setupButtons();
     setupMobileMenu();
-    setupGradeRewardPreview();
-
-    showPage("dashboard");
+    setupGradeMoneyPreview();
 
     registerServiceWorker();
 
-}
-
-
-/* =========================================================
-   AUTH
-   ========================================================= */
-
-let signupMode = false;
-
-function setupAuth() {
-
-    const loginTab = document.getElementById("login-tab");
-    const signupTab = document.getElementById("signup-tab");
-    const authForm = document.getElementById("auth-form");
-    const nameField = document.getElementById("name-field");
-    const authTitle = document.getElementById("auth-title");
-    const authSubtitle = document.getElementById("auth-subtitle");
-    const authSubmit = document.getElementById("auth-submit");
-
-    if (!loginTab || !signupTab || !authForm) return;
-
-    loginTab.onclick = () => {
-
-        signupMode = false;
-
-        loginTab.classList.add("active");
-        signupTab.classList.remove("active");
-
-        nameField.classList.add("hidden");
-
-        authTitle.textContent = "Connexion";
-
-        authSubtitle.textContent =
-            "Connecte-toi à ton espace BrevetTrack.";
-
-        authSubmit.textContent =
-            "Se connecter";
-
-    };
-
-
-    signupTab.onclick = () => {
-
-        signupMode = true;
-
-        signupTab.classList.add("active");
-        loginTab.classList.remove("active");
-
-        nameField.classList.remove("hidden");
-
-        authTitle.textContent =
-            "Créer un compte";
-
-        authSubtitle.textContent =
-            "Crée ton espace personnel BrevetTrack.";
-
-        authSubmit.textContent =
-            "Créer mon compte";
-
-    };
-
-
-    authForm.onsubmit = async event => {
-
-        event.preventDefault();
-
-        const email =
-            document.getElementById("auth-email").value.trim();
-
-        const password =
-            document.getElementById("auth-password").value;
-
-        const name =
-            document.getElementById("auth-name").value.trim();
-
-        const message =
-            document.getElementById("auth-message");
-
-        message.textContent = "";
-
-        if (!email || !password) {
-
-            message.textContent =
-                "Entre ton email et ton mot de passe.";
-
-            return;
-        }
-
-
-        authSubmit.disabled = true;
-
-        if (signupMode) {
-
-            const {
-                data,
-                error
-            } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        name
-                    }
-                }
-            });
-
-
-            if (error) {
-
-                message.textContent =
-                    error.message;
-
-                authSubmit.disabled = false;
-
-                return;
-            }
-
-
-            if (data.user) {
-
-                await supabaseClient
-                    .from("profiles")
-                    .upsert({
-                        id: data.user.id,
-                        name: name || "Toi"
-                    });
-
-            }
-
-            message.style.color = "#16a34a";
-
-            message.textContent =
-                "Compte créé. Connexion en cours...";
-
-        } else {
-
-            const {
-                error
-            } = await supabaseClient.auth.signInWithPassword({
-                email,
-                password
-            });
-
-
-            if (error) {
-
-                message.textContent =
-                    "Email ou mot de passe incorrect.";
-
-                authSubmit.disabled = false;
-
-                return;
-            }
-
-        }
-
-        authSubmit.disabled = false;
-
-    };
+    updateMoneyDashboard();
 
 }
 
 
-/* =========================================================
-   PROFIL
-   ========================================================= */
+// =========================================================
+// PROFIL
+// =========================================================
 
 async function loadProfile() {
 
-    const {
-        data,
-        error
-    } = await supabaseClient
+    const { data, error } = await supabaseClient
         .from("profiles")
         .select("*")
         .eq("id", currentUser.id)
         .single();
 
-
-    let name = "Toi";
-
-    if (!error && data) {
-
-        name =
-            data.name ||
-            data.first_name ||
-            "Toi";
-
+    if (error) {
+        console.error("Erreur profil :", error);
+        return;
     }
 
+    const name =
+        data?.name ||
+        currentUser.user_metadata?.name ||
+        "toi";
 
-    if (
-        !name ||
-        name === "Toi"
-    ) {
+    const welcome = document.getElementById("welcome");
 
-        name =
-            currentUser.user_metadata?.name ||
-            currentUser.user_metadata?.first_name ||
-            "Toi";
-
+    if (welcome) {
+        welcome.textContent = `Bonjour ${name} 👋`;
     }
-
-
-    document.getElementById("welcome").textContent =
-        `Bonjour ${name}`;
-
 
     const sidebarName =
         document.getElementById("sidebar-name");
 
-    const sidebarEmail =
-        document.getElementById("sidebar-email");
-
     if (sidebarName) {
         sidebarName.textContent = name;
     }
+
+    const sidebarEmail =
+        document.getElementById("sidebar-email");
 
     if (sidebarEmail) {
         sidebarEmail.textContent =
             currentUser.email || "—";
     }
 
+    const initial =
+        name.charAt(0).toUpperCase();
 
-    const firstLetter =
-        name
-            .trim()
-            .charAt(0)
-            .toUpperCase() || "B";
+    const avatars =
+        document.querySelectorAll(".avatar");
 
-
-    const topAvatar =
-        document.getElementById("top-avatar");
-
-    const sidebarAvatar =
-        document.getElementById("sidebar-avatar");
-
-    if (topAvatar) {
-        topAvatar.textContent = firstLetter;
-    }
-
-    if (sidebarAvatar) {
-        sidebarAvatar.textContent = firstLetter;
-    }
-
+    avatars.forEach(avatar => {
+        avatar.textContent = initial;
+    });
 }
 
 
-/* =========================================================
-   NOTES
-   ========================================================= */
+// =========================================================
+// NOTES
+// =========================================================
 
 async function loadGrades() {
 
-    const {
-        data,
-        error
-    } = await supabaseClient
+    const { data, error } = await supabaseClient
         .from("grades")
         .select("*")
         .eq("user_id", currentUser.id)
@@ -321,112 +123,24 @@ async function loadGrades() {
             ascending: false
         });
 
-
     if (error) {
-
-        console.error(
-            "Erreur chargement notes :",
-            error
-        );
-
-        grades = [];
-
+        console.error("Erreur notes :", error);
         return;
     }
-
 
     grades = data || [];
 
-    calculateAverage();
-
-    displayDashboardGrades();
-
+    displayGrades(grades);
+    calculateAverage(grades);
+    updateMoneyDashboard();
 }
 
 
-function calculateAverage() {
+// =========================================================
+// AFFICHAGE NOTES
+// =========================================================
 
-    if (!grades.length) {
-
-        setAverage("—");
-
-        updateBrevet();
-
-        return;
-    }
-
-
-    let total = 0;
-    let coefficients = 0;
-
-
-    grades.forEach(grade => {
-
-        const value =
-            Number(grade.grade);
-
-        const coefficient =
-            Number(grade.coefficient) || 1;
-
-
-        if (!Number.isNaN(value)) {
-
-            total +=
-                value * coefficient;
-
-            coefficients +=
-                coefficient;
-
-        }
-
-    });
-
-
-    if (!coefficients) {
-
-        setAverage("—");
-
-        return;
-    }
-
-
-    const average =
-        total / coefficients;
-
-
-    setAverage(
-        average.toFixed(2)
-    );
-
-    updateProgress(average);
-    updateBrevet(average);
-
-}
-
-
-function setAverage(value) {
-
-    const ids = [
-        "general-average",
-        "average-card"
-    ];
-
-
-    ids.forEach(id => {
-
-        const element =
-            document.getElementById(id);
-
-        if (element) {
-            element.textContent = value;
-        }
-
-    });
-
-}
-
-
-function displayDashboardGrades() {
+function displayGrades(list) {
 
     const container =
         document.getElementById("grades-list");
@@ -434,139 +148,674 @@ function displayDashboardGrades() {
     const count =
         document.getElementById("grades-count");
 
-
     if (count) {
-        count.textContent =
-            grades.length;
+        count.textContent = list.length;
     }
-
 
     if (!container) return;
 
-
-    if (!grades.length) {
+    if (list.length === 0) {
 
         container.innerHTML = `
             <div class="empty">
                 <div class="empty-icon">▤</div>
+
                 <h3>Aucune note</h3>
-                <p>Ajoute ta première note pour commencer.</p>
+
+                <p>
+                    Ajoute ta première note pour commencer.
+                </p>
             </div>
         `;
 
         return;
     }
 
-
     container.innerHTML =
-        grades
-            .slice(0, 8)
-            .map(createGradeHTML)
-            .join("");
+        list.map(grade => {
 
+            const date =
+                grade.grade_date
+                    ? new Date(
+                        grade.grade_date
+                    ).toLocaleDateString("fr-FR")
+                    : "—";
 
-    attachGradeDeleteButtons();
+            return `
+                <div class="grade-row">
 
-}
+                    <strong>
+                        ${escapeHTML(grade.subject)}
+                    </strong>
 
+                    <div class="grade-value">
+                        ${Number(grade.grade).toLocaleString("fr-FR")}/20
+                    </div>
 
-function createGradeHTML(grade) {
+                    <div>
+                        Coef. ${grade.coefficient || 1}
+                    </div>
 
-    const subject =
-        escapeHTML(
-            grade.subject || "Matière"
-        );
+                    <div class="grade-type">
+                        ${escapeHTML(
+                            grade.grade_type || "Note"
+                        )}
+                    </div>
 
+                    <div class="grade-date">
+                        ${date}
+                    </div>
 
-    const type =
-        escapeHTML(
-            grade.grade_type || "Note"
-        );
+                    <button
+                        class="delete-grade"
+                        data-delete-grade="${grade.id}"
+                    >
+                        Supprimer
+                    </button>
 
+                </div>
+            `;
 
-    const coefficient =
-        Number(grade.coefficient) || 1;
-
-
-    const date =
-        formatDate(grade.grade_date);
-
-
-    return `
-        <div class="grade-row">
-
-            <strong>
-                ${subject}
-            </strong>
-
-            <div class="grade-value">
-                ${Number(grade.grade).toFixed(2)}/20
-            </div>
-
-            <div>
-                Coef. ${coefficient}
-            </div>
-
-            <div class="grade-type">
-                ${type}
-            </div>
-
-            <div class="grade-date">
-                ${date}
-            </div>
-
-            <button
-                class="delete-grade"
-                data-delete-grade="${grade.id}"
-                type="button"
-            >
-                Supprimer
-            </button>
-
-        </div>
-    `;
-
-}
-
-
-function attachGradeDeleteButtons() {
+        }).join("");
 
     document
         .querySelectorAll("[data-delete-grade]")
         .forEach(button => {
 
-            button.onclick = async () => {
-
-                await deleteGrade(
+            button.addEventListener(
+                "click",
+                () => deleteGrade(
                     button.dataset.deleteGrade
-                );
-
-            };
+                )
+            );
 
         });
-
 }
 
 
-async function deleteGrade(id) {
+// =========================================================
+// MOYENNE
+// =========================================================
+
+function calculateAverage(list) {
+
+    if (list.length === 0) {
+
+        setAverage("—");
+
+        const brevetEstimate =
+            document.getElementById(
+                "brevet-estimate"
+            );
+
+        const brevetBig =
+            document.getElementById(
+                "brevet-big"
+            );
+
+        if (brevetEstimate) {
+            brevetEstimate.textContent = "—";
+        }
+
+        if (brevetBig) {
+            brevetBig.textContent = "—";
+        }
+
+        updateProgress(NaN);
+
+        return;
+    }
+
+    let total = 0;
+    let coefficients = 0;
+
+    list.forEach(grade => {
+
+        const gradeValue =
+            Number(grade.grade);
+
+        const coefficient =
+            Number(grade.coefficient) || 1;
+
+        total +=
+            gradeValue * coefficient;
+
+        coefficients += coefficient;
+
+    });
+
+    const average =
+        total / coefficients;
+
+    const formatted =
+        average.toFixed(2);
+
+    setAverage(formatted);
+
+    const brevetEstimate =
+        document.getElementById(
+            "brevet-estimate"
+        );
+
+    const brevetBig =
+        document.getElementById(
+            "brevet-big"
+        );
+
+    if (brevetEstimate) {
+        brevetEstimate.textContent = formatted;
+    }
+
+    if (brevetBig) {
+        brevetBig.textContent = formatted;
+    }
+
+    updateProgress(average);
+}
+
+
+function setAverage(value) {
+
+    const generalAverage =
+        document.getElementById(
+            "general-average"
+        );
+
+    const averageCard =
+        document.getElementById(
+            "average-card"
+        );
+
+    if (generalAverage) {
+        generalAverage.textContent = value;
+    }
+
+    if (averageCard) {
+        averageCard.textContent = value;
+    }
+}
+
+
+// =========================================================
+// RÉCOMPENSE DES NOTES
+// =========================================================
+
+function getGradeReward(grade) {
+
+    const value = Number(grade);
+
+    if (isNaN(value)) {
+        return 0;
+    }
+
+    if (value >= 0 && value < 10) {
+        return -500;
+    }
+
+    if (value >= 10 && value < 14) {
+        return -250;
+    }
+
+    if (value >= 14 && value < 16) {
+        return -150;
+    }
+
+    if (value >= 16 && value < 17) {
+        return 0;
+    }
+
+    if (value >= 17 && value < 18.5) {
+        return 250;
+    }
+
+    if (value >= 18.5 && value < 19.5) {
+        return 300;
+    }
+
+    if (value >= 19.5 && value <= 20) {
+        return 350;
+    }
+
+    return 0;
+}
+
+
+// =========================================================
+// APERÇU RÉCOMPENSE
+// =========================================================
+
+function setupGradeMoneyPreview() {
+
+    const gradeInput =
+        document.getElementById(
+            "grade-input"
+        );
+
+    if (!gradeInput) return;
+
+    gradeInput.addEventListener(
+        "input",
+        updateGradeMoneyPreview
+    );
+
+    addMoneyAccountFieldIfMissing();
+
+    updateGradeMoneyPreview();
+}
+
+
+function addMoneyAccountFieldIfMissing() {
+
+    const gradeInput =
+        document.getElementById(
+            "grade-input"
+        );
+
+    const modalCard =
+        document.querySelector(
+            "#grade-modal .modal-card"
+        );
+
+    if (!gradeInput || !modalCard) {
+        return;
+    }
 
     if (
-        !confirm(
-            "Supprimer cette note ?"
+        document.getElementById(
+            "grade-money-account"
         )
     ) {
         return;
     }
 
+    const dateInput =
+        document.getElementById(
+            "date-input"
+        );
+
+    if (!dateInput) return;
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.id =
+        "grade-money-account-wrapper";
+
+    wrapper.innerHTML = `
+        <label>
+            Compte pour la récompense
+        </label>
+
+        <select id="grade-money-account">
+
+            <option value="bank">
+                Banque
+            </option>
+
+            <option value="savings">
+                Épargne
+            </option>
+
+            <option value="cash">
+                Espèces
+            </option>
+
+        </select>
+
+        <div
+            id="grade-money-preview"
+            class="money-preview"
+        >
+            Récompense : 0 DH
+        </div>
+    `;
+
+    dateInput.insertAdjacentElement(
+        "beforebegin",
+        wrapper
+    );
+}
+
+
+function updateGradeMoneyPreview() {
+
+    const input =
+        document.getElementById(
+            "grade-input"
+        );
+
+    const preview =
+        document.getElementById(
+            "grade-money-preview"
+        );
+
+    if (!input || !preview) {
+        return;
+    }
+
+    const value =
+        Number(input.value);
+
+    if (isNaN(value)) {
+
+        preview.textContent =
+            "Récompense : 0 DH";
+
+        return;
+    }
+
+    const reward =
+        getGradeReward(value);
+
+    preview.textContent =
+        `Récompense : ${formatDH(reward)}`;
+}
+
+
+// =========================================================
+// AJOUT NOTE
+// =========================================================
+
+function openGradeModal() {
+
+    if (!modal) return;
+
+    modal.classList.remove("hidden");
+
+    const dateInput =
+        document.getElementById(
+            "date-input"
+        );
+
+    if (dateInput) {
+
+        dateInput.value =
+            new Date()
+                .toISOString()
+                .split("T")[0];
+
+    }
+
+    const message =
+        document.getElementById(
+            "grade-message"
+        );
+
+    if (message) {
+        message.textContent = "";
+    }
+
+    updateGradeMoneyPreview();
+}
+
+
+function closeGradeModal() {
+
+    if (!modal) return;
+
+    modal.classList.add("hidden");
+}
+
+
+async function saveGrade() {
+
+    const subject =
+        document.getElementById(
+            "subject-input"
+        )?.value.trim();
+
+    const grade =
+        Number(
+            document.getElementById(
+                "grade-input"
+            )?.value
+        );
+
+    const coefficient =
+        Number(
+            document.getElementById(
+                "coefficient-input"
+            )?.value
+        );
+
+    const type =
+        document.getElementById(
+            "type-input"
+        )?.value || "Contrôle";
+
+    const date =
+        document.getElementById(
+            "date-input"
+        )?.value;
+
+    const account =
+        document.getElementById(
+            "grade-money-account"
+        )?.value || "bank";
+
+    const message =
+        document.getElementById(
+            "grade-message"
+        );
+
+    if (
+        !subject ||
+        isNaN(grade) ||
+        grade < 0 ||
+        grade > 20
+    ) {
+
+        if (message) {
+            message.textContent =
+                "Vérifie la matière et la note.";
+        }
+
+        return;
+    }
+
+    if (
+        isNaN(coefficient) ||
+        coefficient <= 0
+    ) {
+
+        if (message) {
+            message.textContent =
+                "Le coefficient doit être supérieur à 0.";
+        }
+
+        return;
+    }
+
+    const reward =
+        getGradeReward(grade);
+
+    if (message) {
+        message.textContent =
+            "Enregistrement...";
+    }
+
+    const {
+        data: insertedGrade,
+        error: gradeError
+    } =
+        await supabaseClient
+            .from("grades")
+            .insert({
+                user_id: currentUser.id,
+                subject,
+                grade,
+                coefficient,
+                grade_type: type,
+                grade_date: date || null
+            })
+            .select()
+            .single();
+
+    if (gradeError) {
+
+        console.error(
+            "Erreur ajout note :",
+            gradeError
+        );
+
+        if (message) {
+            message.textContent =
+                "Erreur : " +
+                gradeError.message;
+        }
+
+        return;
+    }
+
+    // -----------------------------------------
+    // AJOUT AUTOMATIQUE DE LA RÉCOMPENSE
+    // -----------------------------------------
+
+    if (reward !== 0) {
+
+        const {
+            error: moneyError
+        } =
+            await supabaseClient
+                .from("money_transactions")
+                .insert({
+                    user_id: currentUser.id,
+                    amount: reward,
+                    account_type: account,
+                    transaction_type: "grade",
+                    description:
+                        `Récompense note ${grade}/20 - ${subject}`,
+                    transaction_date:
+                        date || null
+                });
+
+        if (moneyError) {
+
+            console.error(
+                "Erreur récompense :",
+                moneyError
+            );
+
+            // On ne supprime pas la note :
+            // elle est bien enregistrée.
+            if (message) {
+                message.textContent =
+                    "Note ajoutée, mais la récompense n'a pas pu être enregistrée.";
+            }
+
+        }
+    }
+
+    if (message) {
+
+        if (reward > 0) {
+
+            message.textContent =
+                `Note ajoutée ! +${formatDH(reward)} automatiquement ajoutés.`;
+
+        } else if (reward < 0) {
+
+            message.textContent =
+                `Note ajoutée ! ${formatDH(reward)} automatiquement retirés.`;
+
+        } else {
+
+            message.textContent =
+                "Note ajoutée ! Aucun changement d'argent.";
+
+        }
+    }
+
+    // Reset
+    const subjectInput =
+        document.getElementById(
+            "subject-input"
+        );
+
+    const gradeInput =
+        document.getElementById(
+            "grade-input"
+        );
+
+    const coefficientInput =
+        document.getElementById(
+            "coefficient-input"
+        );
+
+    if (subjectInput) {
+        subjectInput.value = "";
+    }
+
+    if (gradeInput) {
+        gradeInput.value = "";
+    }
+
+    if (coefficientInput) {
+        coefficientInput.value = "1";
+    }
+
+    updateGradeMoneyPreview();
+
+    await loadGrades();
+    await loadMoney();
+
+    setTimeout(
+        closeGradeModal,
+        800
+    );
+}
+
+
+// =========================================================
+// SUPPRIMER NOTE
+// =========================================================
+
+async function deleteGrade(id) {
+
+    const grade =
+        grades.find(
+            item => String(item.id) === String(id)
+        );
+
+    if (!grade) return;
+
+    const confirmed =
+        confirm(
+            "Supprimer cette note ?\n\nLa récompense liée à cette note sera également supprimée."
+        );
+
+    if (!confirmed) return;
+
+    // Supprimer d'abord la transaction
+    // liée à cette note.
+    const description =
+        `Récompense note ${grade.grade}/20 - ${grade.subject}`;
+
+    const {
+        error: moneyError
+    } =
+        await supabaseClient
+            .from("money_transactions")
+            .delete()
+            .eq("user_id", currentUser.id)
+            .eq("transaction_type", "grade")
+            .eq("description", description);
+
+    if (moneyError) {
+        console.error(
+            "Erreur suppression récompense :",
+            moneyError
+        );
+    }
 
     const {
         error
-    } = await supabaseClient
-        .from("grades")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", currentUser.id);
-
+    } =
+        await supabaseClient
+            .from("grades")
+            .delete()
+            .eq("id", id)
+            .eq("user_id", currentUser.id);
 
     if (error) {
 
@@ -578,693 +827,541 @@ async function deleteGrade(id) {
         return;
     }
 
-
-    await loadGrades();
-
-    if (currentPage === "notes") {
-        showNotes();
-    }
-
-}
-
-
-/* =========================================================
-   RÉCOMPENSES DES NOTES
-   ========================================================= */
-
-function getGradeReward(grade) {
-
-    const value =
-        Number(grade);
-
-
-    if (Number.isNaN(value)) {
-        return 0;
-    }
-
-
-    if (value < 10) {
-        return -500;
-    }
-
-    if (value < 14) {
-        return -250;
-    }
-
-    if (value < 16) {
-        return -150;
-    }
-
-    if (value < 17) {
-        return 0;
-    }
-
-    if (value < 18.5) {
-        return 250;
-    }
-
-    if (value < 19.5) {
-        return 300;
-    }
-
-    return 350;
-
-}
-
-
-function getRewardLabel(amount) {
-
-    if (amount > 0) {
-        return `+${amount} DH`;
-    }
-
-    if (amount < 0) {
-        return `${amount} DH`;
-    }
-
-    return "0 DH";
-
-}
-
-
-function setupGradeRewardPreview() {
-
-    const gradeInput =
-        document.getElementById("grade-input");
-
-    const preview =
-        document.getElementById(
-            "grade-money-preview"
-        );
-
-
-    if (!gradeInput || !preview) {
-        return;
-    }
-
-
-    const update = () => {
-
-        const value =
-            Number(gradeInput.value);
-
-
-        if (
-            Number.isNaN(value) ||
-            gradeInput.value === ""
-        ) {
-
-            preview.textContent =
-                "Récompense : 0 DH";
-
-            return;
-        }
-
-
-        const reward =
-            getGradeReward(value);
-
-
-        preview.textContent =
-            `Récompense : ${getRewardLabel(reward)}`;
-
-    };
-
-
-    gradeInput.addEventListener(
-        "input",
-        update
-    );
-
-}
-
-
-function resetGradeModal() {
-
-    document.getElementById(
-        "subject-input"
-    ).value = "";
-
-    document.getElementById(
-        "grade-input"
-    ).value = "";
-
-    document.getElementById(
-        "coefficient-input"
-    ).value = "1";
-
-    document.getElementById(
-        "date-input"
-    ).value =
-        getTodayISO();
-
-
-    document.getElementById(
-        "grade-money-account"
-    ).value = "bank";
-
-
-    document.getElementById(
-        "grade-message"
-    ).textContent = "";
-
-    document.getElementById(
-        "grade-money-preview"
-    ).textContent =
-        "Récompense : 0 DH";
-
-}
-
-
-function openGradeModal() {
-
-    resetGradeModal();
-
-    modal.classList.remove(
-        "hidden"
-    );
-
-}
-
-
-function closeGradeModal() {
-
-    modal.classList.add(
-        "hidden"
-    );
-
-}
-
-
-async function saveGrade() {
-
-    const subject =
-        document
-            .getElementById("subject-input")
-            .value
-            .trim();
-
-
-    const grade =
-        Number(
-            document
-                .getElementById("grade-input")
-                .value
-        );
-
-
-    const coefficient =
-        Number(
-            document
-                .getElementById("coefficient-input")
-                .value
-        ) || 1;
-
-
-    const type =
-        document
-            .getElementById("type-input")
-            .value;
-
-
-    const date =
-        document
-            .getElementById("date-input")
-            .value;
-
-
-    const account =
-        document
-            .getElementById(
-                "grade-money-account"
-            )
-            .value;
-
-
-    const message =
-        document.getElementById(
-            "grade-message"
-        );
-
-
-    message.style.color =
-        "#dc2626";
-
-
-    if (
-        !subject ||
-        Number.isNaN(grade) ||
-        grade < 0 ||
-        grade > 20
-    ) {
-
-        message.textContent =
-            "Vérifie la matière et la note.";
-
-        return;
-    }
-
-
-    if (
-        coefficient <= 0
-    ) {
-
-        message.textContent =
-            "Le coefficient doit être supérieur à 0.";
-
-        return;
-    }
-
-
-    const reward =
-        getGradeReward(grade);
-
-
-    const {
-        data: insertedGrade,
-        error
-    } = await supabaseClient
-        .from("grades")
-        .insert({
-            user_id: currentUser.id,
-            subject,
-            grade,
-            coefficient,
-            grade_type: type,
-            grade_date: date || null
-        })
-        .select()
-        .single();
-
-
-    if (error) {
-
-        console.error(error);
-
-        message.textContent =
-            "Erreur : " +
-            error.message;
-
-        return;
-    }
-
-
-    if (reward !== 0) {
-
-        const {
-            error: moneyError
-        } = await addMoneyTransaction({
-
-            amount: reward,
-
-            accountType:
-                account,
-
-            transactionType:
-                "grade",
-
-            description:
-                `Récompense note : ${subject} — ${grade}/20`,
-
-            transactionDate:
-                date || getTodayISO(),
-
-            silent: true
-
-        });
-
-
-        if (moneyError) {
-
-            console.error(
-                moneyError
-            );
-
-            message.textContent =
-                "La note a été ajoutée, mais la récompense n'a pas pu être enregistrée.";
-
-            await loadGrades();
-
-            return;
-        }
-
-    }
-
-
-    message.style.color =
-        "#16a34a";
-
-    message.textContent =
-        `Note ajoutée. Récompense : ${getRewardLabel(reward)}`;
-
-
     await loadGrades();
     await loadMoney();
 
-
-    setTimeout(
-        closeGradeModal,
-        700
-    );
-
-}
-
-
-/* =========================================================
-   OBJECTIF
-   ========================================================= */
-
-function loadTarget() {
-
-    if (!currentUser) return;
-
-
-    const target =
-        localStorage.getItem(
-            `brevettrack_target_${currentUser.id}`
-        );
-
-
-    if (!target) {
-
-        updateProgress(
-            Number(
-                document.getElementById(
-                    "average-card"
-                ).textContent
-            )
-        );
-
-        return;
-    }
-
-
-    const value =
-        Number(target);
-
-
-    const targetAverage =
-        document.getElementById(
-            "target-average"
-        );
-
-    const circle =
-        document.getElementById(
-            "target-circle-value"
-        );
-
-    const input =
-        document.getElementById(
-            "target-input"
-        );
-
-
-    if (targetAverage) {
-        targetAverage.textContent =
-            value.toFixed(1);
-    }
-
-    if (circle) {
-        circle.textContent =
-            value.toFixed(1);
-    }
-
-    if (input) {
-        input.value = value;
-    }
-
-
-    const average =
-        Number(
-            document.getElementById(
-                "average-card"
-            ).textContent
-        );
-
-
-    updateProgress(
-        average
-    );
-
-}
-
-
-function saveTarget() {
-
-    const target =
-        Number(
-            document.getElementById(
-                "target-input"
-            ).value
-        );
-
-
+    // Si on est sur la page Notes
     if (
-        Number.isNaN(target) ||
-        target < 0 ||
-        target > 20
+        document.getElementById(
+            "notes-page-list"
+        )
     ) {
-
-        alert(
-            "Entre une moyenne entre 0 et 20."
-        );
-
-        return;
+        showNotes();
     }
-
-
-    localStorage.setItem(
-        `brevettrack_target_${currentUser.id}`,
-        target
-    );
-
-
-    const targetAverage =
-        document.getElementById(
-            "target-average"
-        );
-
-    const circle =
-        document.getElementById(
-            "target-circle-value"
-        );
-
-
-    targetAverage.textContent =
-        target.toFixed(1);
-
-    circle.textContent =
-        target.toFixed(1);
-
-
-    const average =
-        Number(
-            document.getElementById(
-                "average-card"
-            ).textContent
-        );
-
-
-    updateProgress(
-        average
-    );
-
 }
 
 
-function updateProgress(average) {
-
-    const target =
-        Number(
-            localStorage.getItem(
-                `brevettrack_target_${currentUser.id}`
-            )
-        );
-
-
-    const bar =
-        document.getElementById(
-            "progress-bar"
-        );
-
-    const text =
-        document.getElementById(
-            "progress-text"
-        );
-
-
-    if (
-        !bar ||
-        !text ||
-        !target ||
-        Number.isNaN(average)
-    ) {
-
-        if (bar) {
-            bar.style.width = "0%";
-        }
-
-        if (text) {
-            text.textContent = "—";
-        }
-
-        return;
-    }
-
-
-    const percentage =
-        Math.min(
-            (average / target) * 100,
-            100
-        );
-
-
-    bar.style.width =
-        `${percentage}%`;
-
-    text.textContent =
-        `${Math.round(percentage)}%`;
-
-}
-
-
-/* =========================================================
-   BREVET
-   ========================================================= */
-
-function updateBrevet(average) {
-
-    if (
-        average === undefined
-    ) {
-
-        const raw =
-            document.getElementById(
-                "average-card"
-            )?.textContent;
-
-        average =
-            Number(raw);
-
-    }
-
-
-    const estimate =
-        document.getElementById(
-            "brevet-estimate"
-        );
-
-    const big =
-        document.getElementById(
-            "brevet-big"
-        );
-
-
-    if (
-        Number.isNaN(average)
-    ) {
-
-        if (estimate) {
-            estimate.textContent = "—";
-        }
-
-        if (big) {
-            big.textContent = "—";
-        }
-
-        return;
-    }
-
-
-    if (estimate) {
-        estimate.textContent =
-            average.toFixed(2);
-    }
-
-    if (big) {
-        big.textContent =
-            average.toFixed(2);
-    }
-
-
-    const pageEstimate =
-        document.getElementById(
-            "brevet-estimate-page"
-        );
-
-    const points =
-        document.getElementById(
-            "brevet-points"
-        );
-
-
-    if (pageEstimate) {
-        pageEstimate.textContent =
-            average.toFixed(2);
-    }
-
-    if (points) {
-        points.textContent =
-            Math.round(
-                (average / 20) * 800
-            );
-    }
-
-}
-
-
-/* =========================================================
-   ARGENT — SUPABASE
-   ========================================================= */
+// =========================================================
+// ARGENT
+// =========================================================
 
 async function loadMoney() {
 
     const {
         data,
         error
-    } = await supabaseClient
-        .from("money_transactions")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order(
-            "transaction_date",
-            {
-                ascending: false
-            }
-        )
-        .order(
-            "created_at",
-            {
-                ascending: false
-            }
-        );
-
+    } =
+        await supabaseClient
+            .from("money_transactions")
+            .select("*")
+            .eq("user_id", currentUser.id)
+            .order(
+                "transaction_date",
+                {
+                    ascending: false
+                }
+            )
+            .order(
+                "created_at",
+                {
+                    ascending: false
+                }
+            );
 
     if (error) {
 
         console.error(
-            "Erreur chargement argent :",
+            "Erreur argent :",
             error
         );
 
         moneyTransactions = [];
 
-        updateMoneyUI();
+        updateMoneyDashboard();
 
         return;
     }
 
-
     moneyTransactions =
         data || [];
 
-
-    updateMoneyUI();
-
+    updateMoneyDashboard();
 }
 
 
-function accountLabel(account) {
+// =========================================================
+// FORMAT DH
+// =========================================================
+
+function formatDH(amount) {
+
+    const value =
+        Number(amount) || 0;
+
+    const sign =
+        value > 0
+            ? "+"
+            : "";
+
+    return (
+        sign +
+        value.toLocaleString(
+            "fr-FR",
+            {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }
+        ) +
+        " DH"
+    );
+}
+
+
+function formatAbsoluteDH(amount) {
+
+    const value =
+        Math.abs(
+            Number(amount) || 0
+        );
+
+    return (
+        value.toLocaleString(
+            "fr-FR",
+            {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }
+        ) +
+        " DH"
+    );
+}
+
+
+// =========================================================
+// CALCUL SOLDES
+// =========================================================
+
+function getMoneyBalances() {
+
+    const balances = {
+        bank: 0,
+        savings: 0,
+        cash: 0
+    };
+
+    moneyTransactions.forEach(
+        transaction => {
+
+            const account =
+                transaction.account_type;
+
+            if (
+                Object.prototype.hasOwnProperty
+                    .call(
+                        balances,
+                        account
+                    )
+            ) {
+
+                balances[account] +=
+                    Number(
+                        transaction.amount
+                    ) || 0;
+            }
+
+        }
+    );
+
+    balances.total =
+        balances.bank +
+        balances.savings +
+        balances.cash;
+
+    return balances;
+}
+
+
+// =========================================================
+// TOTAL DU TABLEAU DE BORD
+// =========================================================
+
+function updateMoneyDashboard() {
+
+    const balances =
+        getMoneyBalances();
+
+    const total =
+        document.getElementById(
+            "money-total"
+        );
+
+    if (total) {
+
+        total.textContent =
+            `${balances.total.toLocaleString(
+                "fr-FR",
+                {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                }
+            )} DH`;
+    }
+
+    const bank =
+        document.getElementById(
+            "money-bank"
+        );
+
+    const savings =
+        document.getElementById(
+            "money-savings"
+        );
+
+    const cash =
+        document.getElementById(
+            "money-cash"
+        );
+
+    if (bank) {
+        bank.textContent =
+            formatAbsoluteDH(
+                balances.bank
+            );
+    }
+
+    if (savings) {
+        savings.textContent =
+            formatAbsoluteDH(
+                balances.savings
+            );
+    }
+
+    if (cash) {
+        cash.textContent =
+            formatAbsoluteDH(
+                balances.cash
+            );
+    }
+}
+
+
+// =========================================================
+// PAGE ARGENT
+// =========================================================
+
+function showMoney() {
+
+    const balances =
+        getMoneyBalances();
+
+    main.innerHTML = `
+
+        <section class="hero-card">
+
+            <div>
+
+                <p class="hero-label">
+                    ARGENT
+                </p>
+
+                <h2>
+                    Mon argent
+                </h2>
+
+                <p class="hero-text">
+                    Tes récompenses liées à tes notes et tes opérations.
+                </p>
+
+            </div>
+
+            <div class="hero-score">
+
+                <span>
+                    ${balances.total.toLocaleString(
+                        "fr-FR",
+                        {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2
+                        }
+                    )}
+                </span>
+
+                <small>
+                    DH
+                </small>
+
+                <p>
+                    Total
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-top">
+                    <span>Banque</span>
+                    <span class="stat-icon">B</span>
+                </div>
+
+                <strong>
+                    ${formatAbsoluteDH(
+                        balances.bank
+                    )}
+                </strong>
+
+                <p>
+                    Compte bancaire
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-top">
+                    <span>Épargne</span>
+                    <span class="stat-icon">S</span>
+                </div>
+
+                <strong>
+                    ${formatAbsoluteDH(
+                        balances.savings
+                    )}
+                </strong>
+
+                <p>
+                    Épargne
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-top">
+                    <span>Espèces</span>
+                    <span class="stat-icon">D</span>
+                </div>
+
+                <strong>
+                    ${formatAbsoluteDH(
+                        balances.cash
+                    )}
+                </strong>
+
+                <p>
+                    Argent liquide
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Opérations
+                    </h2>
+
+                    <p>
+                        Historique de ton argent
+                    </p>
+
+                </div>
+
+                <div>
+
+                    <button
+                        id="money-add-page-btn"
+                        class="primary-btn"
+                    >
+                        + Ajouter
+                    </button>
+
+                    <button
+                        id="balance-page-btn"
+                        class="secondary-btn"
+                    >
+                        Soldes
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div id="money-history">
+            </div>
+
+        </section>
+    `;
+
+    renderMoneyHistory();
+
+    document
+        .getElementById(
+            "money-add-page-btn"
+        )
+        ?.addEventListener(
+            "click",
+            openMoneyModal
+        );
+
+    document
+        .getElementById(
+            "balance-page-btn"
+        )
+        ?.addEventListener(
+            "click",
+            openBalanceModal
+        );
+}
+
+
+// =========================================================
+// HISTORIQUE ARGENT
+// =========================================================
+
+function renderMoneyHistory() {
+
+    const container =
+        document.getElementById(
+            "money-history"
+        );
+
+    if (!container) return;
+
+    if (
+        moneyTransactions.length === 0
+    ) {
+
+        container.innerHTML = `
+            <div class="empty">
+
+                <div class="empty-icon">
+                    DH
+                </div>
+
+                <h3>
+                    Aucun mouvement
+                </h3>
+
+                <p>
+                    Tes récompenses apparaîtront ici.
+                </p>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        moneyTransactions
+            .map(transaction => {
+
+                const amount =
+                    Number(
+                        transaction.amount
+                    ) || 0;
+
+                const positive =
+                    amount > 0;
+
+                const date =
+                    transaction.transaction_date
+                        ? new Date(
+                            transaction.transaction_date
+                        ).toLocaleDateString(
+                            "fr-FR"
+                        )
+                        : "—";
+
+                const account =
+                    getAccountLabel(
+                        transaction.account_type
+                    );
+
+                const type =
+                    getTransactionLabel(
+                        transaction.transaction_type
+                    );
+
+                return `
+                    <div class="grade-row">
+
+                        <strong>
+                            ${escapeHTML(
+                                transaction.description ||
+                                type
+                            )}
+                        </strong>
+
+                        <div>
+                            ${type}
+                        </div>
+
+                        <div>
+                            ${account}
+                        </div>
+
+                        <div>
+                            ${date}
+                        </div>
+
+                        <div class="grade-value">
+                            ${positive ? "+" : ""}
+                            ${amount.toLocaleString(
+                                "fr-FR",
+                                {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2
+                                }
+                            )}
+                            DH
+                        </div>
+
+                        <button
+                            class="delete-grade"
+                            data-delete-money="${transaction.id}"
+                        >
+                            Supprimer
+                        </button>
+
+                    </div>
+                `;
+
+            })
+            .join("");
+
+    document
+        .querySelectorAll(
+            "[data-delete-money]"
+        )
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => deleteMoneyTransaction(
+                    button.dataset.deleteMoney
+                )
+            );
+
+        });
+}
+
+
+function getAccountLabel(account) {
 
     if (account === "bank") {
         return "Banque";
@@ -1278,15 +1375,14 @@ function accountLabel(account) {
         return "Espèces";
     }
 
-    return "Autre";
-
+    return "—";
 }
 
 
-function transactionTypeLabel(type) {
+function getTransactionLabel(type) {
 
     if (type === "grade") {
-        return "Récompense de note";
+        return "Note";
     }
 
     if (type === "encouragement") {
@@ -1297,727 +1393,494 @@ function transactionTypeLabel(type) {
         return "Observation";
     }
 
+    if (type === "manual") {
+        return "Manuel";
+    }
+
     if (type === "initial_balance") {
         return "Solde initial";
     }
 
-    return "Opération manuelle";
-
+    return "Opération";
 }
 
 
-function calculateMoneyBalances() {
-
-    const balances = {
-        bank: 0,
-        savings: 0,
-        cash: 0
-    };
-
-
-    moneyTransactions.forEach(transaction => {
-
-        const account =
-            transaction.account_type;
-
-
-        if (
-            Object.prototype.hasOwnProperty.call(
-                balances,
-                account
-            )
-        ) {
-
-            balances[account] +=
-                Number(
-                    transaction.amount
-                ) || 0;
-
-        }
-
-    });
-
-
-    balances.total =
-        balances.bank +
-        balances.savings +
-        balances.cash;
-
-
-    return balances;
-
-}
-
-
-function formatMoney(amount) {
-
-    const value =
-        Number(amount) || 0;
-
-
-    return (
-        value.toLocaleString(
-            "fr-FR",
-            {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
-            }
-        ) +
-        " DH"
-    );
-
-}
-
-
-function updateMoneyUI() {
-
-    const balances =
-        calculateMoneyBalances();
-
-
-    const values = {
-
-        "money-total":
-            balances.total,
-
-        "money-page-total":
-            balances.total,
-
-        "money-bank":
-            balances.bank,
-
-        "money-savings":
-            balances.savings,
-
-        "money-cash":
-            balances.cash
-
-    };
-
-
-    Object.entries(values)
-        .forEach(([id, value]) => {
-
-            const element =
-                document.getElementById(id);
-
-            if (element) {
-                element.textContent =
-                    formatMoney(value);
-            }
-
-        });
-
-
-    const dashboardMoney =
-        document.getElementById(
-            "money-total"
-        );
-
-    if (dashboardMoney) {
-        dashboardMoney.textContent =
-            formatMoney(
-                balances.total
-            );
-    }
-
-
-    renderMoneyHistory();
-
-}
-
-
-function renderMoneyHistory() {
-
-    const container =
-        document.getElementById(
-            "money-list"
-        );
-
-
-    if (!container) return;
-
-
-    if (!moneyTransactions.length) {
-
-        container.innerHTML = `
-            <div class="empty">
-                <div class="empty-icon">€</div>
-                <h3>Aucun mouvement</h3>
-                <p>Ton historique apparaîtra ici.</p>
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        moneyTransactions
-            .map(transaction => {
-
-                const amount =
-                    Number(
-                        transaction.amount
-                    ) || 0;
-
-
-                const amountClass =
-                    amount > 0
-                        ? "money-positive"
-                        : amount < 0
-                            ? "money-negative"
-                            : "money-neutral";
-
-
-                const sign =
-                    amount > 0
-                        ? "+"
-                        : "";
-
-
-                return `
-                    <div class="money-row">
-
-                        <div>
-
-                            <div class="money-description">
-                                ${escapeHTML(
-                                    transaction.description ||
-                                    transactionTypeLabel(
-                                        transaction.transaction_type
-                                    )
-                                )}
-                            </div>
-
-                            <div class="money-meta">
-                                ${transactionTypeLabel(
-                                    transaction.transaction_type
-                                )}
-                                ·
-                                ${formatDate(
-                                    transaction.transaction_date
-                                )}
-                            </div>
-
-                        </div>
-
-
-                        <div class="money-account">
-                            ${accountLabel(
-                                transaction.account_type
-                            )}
-                        </div>
-
-
-                        <div class="money-amount ${amountClass}">
-                            ${sign}${formatMoney(amount)}
-                        </div>
-
-                    </div>
-                `;
-
-            })
-            .join("");
-
-}
-
-
-async function addMoneyTransaction({
-
-    amount,
-    accountType,
-    transactionType,
-    description,
-    transactionDate,
-    silent = false
-
-}) {
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("money_transactions")
-        .insert({
-
-            user_id:
-                currentUser.id,
-
-            amount:
-                Number(amount),
-
-            account_type:
-                accountType,
-
-            transaction_type:
-                transactionType,
-
-            description:
-                description || null,
-
-            transaction_date:
-                transactionDate ||
-                getTodayISO()
-
-        })
-        .select()
-        .single();
-
-
-    if (error) {
-
-        if (!silent) {
-
-            console.error(error);
-
-        }
-
-        return {
-            data: null,
-            error
-        };
-
-    }
-
-
-    moneyTransactions.unshift(
-        data
-    );
-
-
-    updateMoneyUI();
-
-
-    return {
-        data,
-        error: null
-    };
-
-}
-
-
-/* =========================================================
-   OPÉRATIONS ARGENT
-   ========================================================= */
+// =========================================================
+// OPÉRATION ARGENT
+// =========================================================
 
 function openMoneyModal() {
 
-    const modal =
+    const moneyModal =
         document.getElementById(
             "money-modal"
         );
 
+    if (!moneyModal) return;
 
-    if (!modal) return;
-
-
-    document.getElementById(
-        "money-amount"
-    ).value = "";
-
-
-    document.getElementById(
-        "money-account"
-    ).value = "bank";
-
-
-    document.getElementById(
-        "money-type"
-    ).value = "manual";
-
-
-    document.getElementById(
-        "money-description"
-    ).value = "";
-
-
-    document.getElementById(
-        "money-message"
-    ).textContent = "";
-
-
-    modal.classList.remove(
+    moneyModal.classList.remove(
         "hidden"
     );
-
-}
-
-
-function closeMoneyModal() {
-
-    document
-        .getElementById(
-            "money-modal"
-        )
-        ?.classList.add(
-            "hidden"
-        );
-
-}
-
-
-async function saveMoney() {
-
-    const amount =
-        Number(
-            document.getElementById(
-                "money-amount"
-            ).value
-        );
-
-
-    const account =
-        document.getElementById(
-            "money-account"
-        ).value;
-
-
-    const type =
-        document.getElementById(
-            "money-type"
-        ).value;
-
-
-    const description =
-        document.getElementById(
-            "money-description"
-        ).value.trim();
-
 
     const message =
         document.getElementById(
             "money-message"
         );
 
-
-    if (
-        Number.isNaN(amount) ||
-        amount === 0
-    ) {
-
-        message.textContent =
-            "Entre un montant différent de 0.";
-
-        return;
+    if (message) {
+        message.textContent = "";
     }
+}
 
 
-    let finalAmount =
-        amount;
+function closeMoneyModal() {
 
+    const moneyModal =
+        document.getElementById(
+            "money-modal"
+        );
+
+    if (!moneyModal) return;
+
+    moneyModal.classList.add(
+        "hidden"
+    );
+}
+
+
+async function saveMoney() {
+
+    const amountInput =
+        document.getElementById(
+            "money-amount"
+        );
+
+    const accountInput =
+        document.getElementById(
+            "money-account"
+        );
+
+    const typeInput =
+        document.getElementById(
+            "money-type"
+        );
+
+    const descriptionInput =
+        document.getElementById(
+            "money-description"
+        );
+
+    const message =
+        document.getElementById(
+            "money-message"
+        );
+
+    let amount =
+        Number(
+            amountInput?.value
+        );
+
+    const account =
+        accountInput?.value ||
+        "bank";
+
+    const type =
+        typeInput?.value ||
+        "manual";
+
+    let description =
+        descriptionInput?.value.trim();
 
     if (
         type === "encouragement"
     ) {
 
-        finalAmount = 100;
+        amount = 100;
 
-    } else if (
+        description =
+            description ||
+            "Encouragement";
+    }
+
+    if (
         type === "observation"
     ) {
 
-        finalAmount = -150;
+        amount = -150;
 
+        description =
+            description ||
+            "Observation";
     }
 
+    if (
+        isNaN(amount) ||
+        amount === 0
+    ) {
 
-    let finalDescription =
-        description;
-
-
-    if (!finalDescription) {
-
-        finalDescription =
-            transactionTypeLabel(type);
-
-    }
-
-
-    const result =
-        await addMoneyTransaction({
-
-            amount:
-                finalAmount,
-
-            accountType:
-                account,
-
-            transactionType:
-                type,
-
-            description:
-                finalDescription,
-
-            transactionDate:
-                getTodayISO(),
-
-            silent: false
-
-        });
-
-
-    if (result.error) {
-
-        message.textContent =
-            "Erreur : " +
-            result.error.message;
+        if (message) {
+            message.textContent =
+                "Entre un montant différent de 0.";
+        }
 
         return;
     }
 
+    if (!description) {
+        description =
+            "Opération manuelle";
+    }
 
-    message.style.color =
-        "#16a34a";
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("money_transactions")
+            .insert({
+                user_id: currentUser.id,
+                amount,
+                account_type: account,
+                transaction_type: type,
+                description,
+                transaction_date:
+                    new Date()
+                        .toISOString()
+                        .split("T")[0]
+            });
 
-    message.textContent =
-        "Opération ajoutée.";
+    if (error) {
 
+        console.error(
+            "Erreur argent :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "Erreur : " +
+                error.message;
+        }
+
+        return;
+    }
+
+    if (message) {
+        message.textContent =
+            "Opération ajoutée !";
+    }
+
+    if (amountInput) {
+        amountInput.value = "";
+    }
+
+    if (descriptionInput) {
+        descriptionInput.value = "";
+    }
 
     await loadMoney();
-
 
     setTimeout(
         closeMoneyModal,
         500
     );
-
 }
 
 
-/* =========================================================
-   SOLDES INITIAUX
-   ========================================================= */
+// =========================================================
+// SUPPRIMER ARGENT
+// =========================================================
+
+async function deleteMoneyTransaction(
+    id
+) {
+
+    const confirmed =
+        confirm(
+            "Supprimer cette opération ?"
+        );
+
+    if (!confirmed) return;
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("money_transactions")
+            .delete()
+            .eq("id", id)
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+    if (error) {
+
+        alert(
+            "Erreur : " +
+            error.message
+        );
+
+        return;
+    }
+
+    await loadMoney();
+
+    showMoney();
+}
+
+
+// =========================================================
+// SOLDES INITIAUX
+// =========================================================
 
 function openBalanceModal() {
 
-    const balances =
-        calculateMoneyBalances();
-
-
-    document.getElementById(
-        "initial-bank"
-    ).value =
-        balances.bank;
-
-
-    document.getElementById(
-        "initial-savings"
-    ).value =
-        balances.savings;
-
-
-    document.getElementById(
-        "initial-cash"
-    ).value =
-        balances.cash;
-
-
-    document.getElementById(
-        "balance-message"
-    ).textContent = "";
-
-
-    document
-        .getElementById(
+    const balanceModal =
+        document.getElementById(
             "balance-modal"
-        )
-        .classList.remove(
-            "hidden"
         );
 
+    if (!balanceModal) return;
+
+    balanceModal.classList.remove(
+        "hidden"
+    );
+
+    loadInitialBalanceInputs();
 }
 
 
 function closeBalanceModal() {
 
-    document
-        .getElementById(
+    const balanceModal =
+        document.getElementById(
             "balance-modal"
-        )
-        ?.classList.add(
-            "hidden"
         );
 
+    if (!balanceModal) return;
+
+    balanceModal.classList.add(
+        "hidden"
+    );
+}
+
+
+function loadInitialBalanceInputs() {
+
+    const balances =
+        getMoneyBalances();
+
+    const bank =
+        document.getElementById(
+            "initial-bank"
+        );
+
+    const savings =
+        document.getElementById(
+            "initial-savings"
+        );
+
+    const cash =
+        document.getElementById(
+            "initial-cash"
+        );
+
+    if (bank) {
+        bank.value =
+            getInitialBalance(
+                "bank"
+            );
+    }
+
+    if (savings) {
+        savings.value =
+            getInitialBalance(
+                "savings"
+            );
+    }
+
+    if (cash) {
+        cash.value =
+            getInitialBalance(
+                "cash"
+            );
+    }
+}
+
+
+function getInitialBalance(account) {
+
+    const transaction =
+        moneyTransactions.find(
+            item =>
+                item.account_type ===
+                    account &&
+                item.transaction_type ===
+                    "initial_balance"
+        );
+
+    return transaction
+        ? transaction.amount
+        : 0;
 }
 
 
 async function saveBalances() {
 
-    const bank =
-        Number(
-            document.getElementById(
-                "initial-bank"
-            ).value
-        ) || 0;
+    const values = {
+        bank:
+            Number(
+                document.getElementById(
+                    "initial-bank"
+                )?.value
+            ) || 0,
 
+        savings:
+            Number(
+                document.getElementById(
+                    "initial-savings"
+                )?.value
+            ) || 0,
 
-    const savings =
-        Number(
-            document.getElementById(
-                "initial-savings"
-            ).value
-        ) || 0;
+        cash:
+            Number(
+                document.getElementById(
+                    "initial-cash"
+                )?.value
+            ) || 0
+    };
 
-
-    const cash =
-        Number(
-            document.getElementById(
-                "initial-cash"
-            ).value
-        ) || 0;
-
-
-    if (
-        bank < 0 ||
-        savings < 0 ||
-        cash < 0
-    ) {
-
-        document.getElementById(
-            "balance-message"
-        ).textContent =
-            "Les soldes ne peuvent pas être négatifs.";
-
-        return;
-    }
-
-
-    /*
-       On calcule les soldes actuels puis on ajoute
-       uniquement la différence.
-    */
-
-    const current =
-        calculateMoneyBalances();
-
-
-    const differences = [
-
-        {
-            account: "bank",
-            difference:
-                bank - current.bank
-        },
-
-        {
-            account: "savings",
-            difference:
-                savings - current.savings
-        },
-
-        {
-            account: "cash",
-            difference:
-                cash - current.cash
-        }
-
+    const accounts = [
+        "bank",
+        "savings",
+        "cash"
     ];
 
+    for (const account of accounts) {
 
-    for (
-        const item of differences
-    ) {
+        const existing =
+            moneyTransactions.find(
+                item =>
+                    item.account_type ===
+                        account &&
+                    item.transaction_type ===
+                        "initial_balance"
+            );
 
-        if (
-            item.difference === 0
+        if (existing) {
+
+            const {
+                error
+            } =
+                await supabaseClient
+                    .from(
+                        "money_transactions"
+                    )
+                    .update({
+                        amount:
+                            values[account],
+                        description:
+                            "Solde initial"
+                    })
+                    .eq(
+                        "id",
+                        existing.id
+                    )
+                    .eq(
+                        "user_id",
+                        currentUser.id
+                    );
+
+            if (error) {
+                console.error(
+                    error
+                );
+            }
+
+        } else if (
+            values[account] !== 0
         ) {
-            continue;
+
+            const {
+                error
+            } =
+                await supabaseClient
+                    .from(
+                        "money_transactions"
+                    )
+                    .insert({
+                        user_id:
+                            currentUser.id,
+                        amount:
+                            values[account],
+                        account_type:
+                            account,
+                        transaction_type:
+                            "initial_balance",
+                        description:
+                            "Solde initial",
+                        transaction_date:
+                            new Date()
+                                .toISOString()
+                                .split("T")[0]
+                    });
+
+            if (error) {
+                console.error(
+                    error
+                );
+            }
         }
-
-
-        const result =
-            await addMoneyTransaction({
-
-                amount:
-                    item.difference,
-
-                accountType:
-                    item.account,
-
-                transactionType:
-                    "initial_balance",
-
-                description:
-                    `Mise à jour du solde ${accountLabel(item.account)}`,
-
-                transactionDate:
-                    getTodayISO(),
-
-                silent: true
-
-            });
-
-
-        if (result.error) {
-
-            document.getElementById(
-                "balance-message"
-            ).textContent =
-                "Erreur : " +
-                result.error.message;
-
-            return;
-        }
-
     }
-
 
     await loadMoney();
 
+    const message =
+        document.getElementById(
+            "balance-message"
+        );
 
-    document.getElementById(
-        "balance-message"
-    ).style.color =
-        "#16a34a";
-
-
-    document.getElementById(
-        "balance-message"
-    ).textContent =
-        "Soldes enregistrés.";
-
+    if (message) {
+        message.textContent =
+            "Soldes enregistrés !";
+    }
 
     setTimeout(
         closeBalanceModal,
-        600
+        500
     );
-
 }
 
 
-/* =========================================================
-   TODO — SUPABASE
-   ========================================================= */
+// =========================================================
+// À FAIRE
+// =========================================================
 
 async function loadTodos() {
 
     const {
         data,
         error
-    } = await supabaseClient
-        .from("todos")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order(
-            "completed",
-            {
-                ascending: true
-            }
-        )
-        .order(
-            "due_at",
-            {
-                ascending: true,
-                nullsFirst: false
-            }
-        );
-
+    } =
+        await supabaseClient
+            .from("todos")
+            .select("*")
+            .eq(
+                "user_id",
+                currentUser.id
+            )
+            .order(
+                "due_at",
+                {
+                    ascending: true,
+                    nullsFirst: false
+                }
+            );
 
     if (error) {
 
         console.error(
-            "Erreur chargement tâches :",
+            "Erreur tâches :",
             error
         );
 
@@ -2026,529 +1889,114 @@ async function loadTodos() {
         return;
     }
 
+    todos = data || [];
+}
 
-    todos =
-        data || [];
 
+function showTodo() {
+
+    main.innerHTML = `
+
+        <section class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        À faire
+                    </h2>
+
+                    <p>
+                        Organise tes devoirs et révisions.
+                    </p>
+
+                </div>
+
+                <button
+                    id="add-todo"
+                    class="primary-btn"
+                >
+                    + Ajouter
+                </button>
+
+            </div>
+
+            <div id="todo-list">
+            </div>
+
+        </section>
+    `;
+
+    renderTodos();
+
+    document
+        .getElementById("add-todo")
+        ?.addEventListener(
+            "click",
+            addTodo
+        );
 }
 
 
 function renderTodos() {
 
-    const container =
+    const list =
         document.getElementById(
             "todo-list"
         );
 
+    if (!list) return;
 
-    if (!container) return;
+    if (todos.length === 0) {
 
-
-    if (!todos.length) {
-
-        container.innerHTML = `
+        list.innerHTML = `
             <div class="empty">
-                <div class="empty-icon">✓</div>
-                <h3>Rien à faire</h3>
-                <p>Ajoute ton premier devoir ou ta première tâche.</p>
-            </div>
-        `;
 
-        return;
-    }
-
-
-    const now =
-        Date.now();
-
-
-    container.innerHTML =
-        todos.map(todo => {
-
-            const due =
-                todo.due_at
-                    ? new Date(todo.due_at)
-                    : null;
-
-
-            const overdue =
-                due &&
-                due.getTime() < now &&
-                !todo.completed;
-
-
-            return `
-                <div class="
-                    todo-item
-                    ${todo.completed ? "completed" : ""}
-                    ${overdue ? "overdue" : ""}
-                ">
-
-                    <input
-                        class="todo-check"
-                        type="checkbox"
-                        data-todo-toggle="${todo.id}"
-                        ${todo.completed ? "checked" : ""}
-                    >
-
-
-                    <div class="todo-content">
-
-                        <div class="todo-title">
-                            ${escapeHTML(
-                                todo.title
-                            )}
-                        </div>
-
-                        <div class="todo-due">
-
-                            ${
-                                due
-                                    ? formatDateTime(
-                                        todo.due_at
-                                    )
-                                    : "Sans date"
-                            }
-
-                            ${
-                                overdue
-                                    ? " · En retard"
-                                    : ""
-                            }
-
-                        </div>
-
-                    </div>
-
-
-                    <button
-                        class="delete-todo"
-                        data-todo-delete="${todo.id}"
-                        type="button"
-                    >
-                        Supprimer
-                    </button>
-
+                <div class="empty-icon">
+                    ✓
                 </div>
-            `;
 
-        }).join("");
+                <h3>
+                    Rien à faire
+                </h3>
 
+                <p>
+                    Ajoute un devoir ou une révision.
+                </p>
 
-    document
-        .querySelectorAll(
-            "[data-todo-toggle]"
-        )
-        .forEach(input => {
-
-            input.onchange = async () => {
-
-                await toggleTodo(
-                    input.dataset.todoToggle,
-                    input.checked
-                );
-
-            };
-
-        });
-
-
-    document
-        .querySelectorAll(
-            "[data-todo-delete]"
-        )
-        .forEach(button => {
-
-            button.onclick = async () => {
-
-                await deleteTodo(
-                    button.dataset.todoDelete
-                );
-
-            };
-
-        });
-
-}
-
-
-async function addTodo() {
-
-    const title =
-        document.getElementById(
-            "todo-title"
-        ).value.trim();
-
-
-    const dueAt =
-        document.getElementById(
-            "todo-date"
-        ).value;
-
-
-    if (!title) {
-
-        alert(
-            "Entre le nom de la tâche."
-        );
-
-        return;
-    }
-
-
-    const {
-        error
-    } = await supabaseClient
-        .from("todos")
-        .insert({
-
-            user_id:
-                currentUser.id,
-
-            title,
-
-            due_at:
-                dueAt
-                    ? new Date(
-                        dueAt
-                    ).toISOString()
-                    : null,
-
-            completed:
-                false
-
-        });
-
-
-    if (error) {
-
-        alert(
-            "Erreur : " +
-            error.message
-        );
-
-        return;
-    }
-
-
-    document.getElementById(
-        "todo-title"
-    ).value = "";
-
-    document.getElementById(
-        "todo-date"
-    ).value = "";
-
-
-    await loadTodos();
-
-    renderTodos();
-
-}
-
-
-async function toggleTodo(
-    id,
-    completed
-) {
-
-    const {
-        error
-    } = await supabaseClient
-        .from("todos")
-        .update({
-            completed
-        })
-        .eq(
-            "id",
-            id
-        )
-        .eq(
-            "user_id",
-            currentUser.id
-        );
-
-
-    if (error) {
-
-        console.error(error);
-
-        return;
-    }
-
-
-    const todo =
-        todos.find(
-            item => item.id === id
-        );
-
-
-    if (todo) {
-        todo.completed =
-            completed;
-    }
-
-
-    renderTodos();
-
-}
-
-
-async function deleteTodo(id) {
-
-    const {
-        error
-    } = await supabaseClient
-        .from("todos")
-        .delete()
-        .eq(
-            "id",
-            id
-        )
-        .eq(
-            "user_id",
-            currentUser.id
-        );
-
-
-    if (error) {
-
-        alert(
-            "Erreur : " +
-            error.message
-        );
-
-        return;
-    }
-
-
-    await loadTodos();
-
-    renderTodos();
-
-}
-
-
-/* =========================================================
-   PAGES
-   ========================================================= */
-
-function showPage(page) {
-
-    currentPage =
-        page;
-
-
-    document
-        .querySelectorAll(".page")
-        .forEach(section => {
-
-            section.classList.add(
-                "hidden"
-            );
-
-        });
-
-
-    const target =
-        document.getElementById(
-            `page-${page}`
-        );
-
-
-    if (target) {
-
-        target.classList.remove(
-            "hidden"
-        );
-
-    }
-
-
-    document
-        .querySelectorAll(".nav-item")
-        .forEach(button => {
-
-            button.classList.toggle(
-                "active",
-                button.dataset.page === page
-            );
-
-        });
-
-
-    const labels = {
-
-        dashboard:
-            "TABLEAU DE BORD",
-
-        notes:
-            "NOTES",
-
-        todo:
-            "À FAIRE",
-
-        brevet:
-            "BREVET",
-
-        calendar:
-            "CALENDRIER",
-
-        money:
-            "ARGENT"
-
-    };
-
-
-    const eyebrow =
-        document.getElementById(
-            "page-eyebrow"
-        );
-
-
-    if (eyebrow) {
-
-        eyebrow.textContent =
-            labels[page] ||
-            "BREVETTRACK";
-
-    }
-
-
-    if (page === "notes") {
-        renderAllGrades();
-    }
-
-    if (page === "todo") {
-        renderTodos();
-    }
-
-    if (page === "brevet") {
-        updateBrevet();
-    }
-
-    if (page === "calendar") {
-        renderCalendar();
-    }
-
-    if (page === "money") {
-        updateMoneyUI();
-    }
-
-
-    closeMobileMenu();
-
-}
-
-
-function renderAllGrades() {
-
-    const container =
-        document.getElementById(
-            "all-grades-list"
-        );
-
-
-    if (!container) return;
-
-
-    if (!grades.length) {
-
-        container.innerHTML = `
-            <div class="empty">
-                <div class="empty-icon">▤</div>
-                <h3>Aucune note</h3>
-                <p>Ajoute ta première note pour commencer.</p>
             </div>
         `;
 
         return;
     }
 
-
-    container.innerHTML =
-        grades
-            .map(createGradeHTML)
-            .join("");
-
-
-    attachGradeDeleteButtons();
-
-}
-
-
-/* =========================================================
-   CALENDRIER
-   ========================================================= */
-
-function renderCalendar() {
-
-    const container =
-        document.getElementById(
-            "calendar-list"
-        );
-
-
-    if (!container) return;
-
-
-    const input =
-        document.getElementById(
-            "calendar-date"
-        );
-
-
-    let selectedDate =
-        input?.value ||
-        getTodayISO();
-
-
-    if (input) {
-        input.value =
-            selectedDate;
-    }
-
-
-    const events =
+    list.innerHTML =
         todos
-            .filter(todo => {
-
-                if (!todo.due_at) {
-                    return false;
-                }
-
-                return (
-                    new Date(
-                        todo.due_at
-                    )
-                    .toISOString()
-                    .slice(0, 10)
-                    === selectedDate
-                );
-
-            });
-
-
-    if (!events.length) {
-
-        container.innerHTML = `
-            <div class="empty">
-                <div class="empty-icon">◷</div>
-                <h3>Aucun devoir ce jour</h3>
-                <p>Tu n'as aucune tâche prévue pour cette date.</p>
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        events
             .map(todo => {
 
+                const due =
+                    todo.due_at
+                        ? new Date(
+                            todo.due_at
+                        ).toLocaleString(
+                            "fr-FR"
+                        )
+                        : "Sans date";
+
+                const overdue =
+                    todo.due_at &&
+                    new Date(
+                        todo.due_at
+                    ) < new Date() &&
+                    !todo.completed;
+
                 return `
-                    <div class="calendar-event">
+                    <div
+                        class="grade-row
+                        ${todo.completed ? "todo-completed" : ""}
+                        ${overdue ? "todo-overdue" : ""}"
+                    >
 
                         <strong>
                             ${escapeHTML(
@@ -2556,17 +2004,33 @@ function renderCalendar() {
                             )}
                         </strong>
 
-                        <div class="money-meta">
-                            ${formatDateTime(
-                                todo.due_at
-                            )}
-
-                            ${
-                                todo.completed
-                                    ? " · Terminé"
-                                    : ""
-                            }
+                        <div>
+                            ${overdue
+                                ? "En retard"
+                                : due}
                         </div>
+
+                        <div>
+                            ${todo.completed
+                                ? "Terminé"
+                                : "À faire"}
+                        </div>
+
+                        <button
+                            class="delete-grade"
+                            data-toggle-todo="${todo.id}"
+                        >
+                            ${todo.completed
+                                ? "Rouvrir"
+                                : "Terminé"}
+                        </button>
+
+                        <button
+                            class="delete-grade"
+                            data-delete-todo="${todo.id}"
+                        >
+                            Supprimer
+                        </button>
 
                     </div>
                 `;
@@ -2574,38 +2038,658 @@ function renderCalendar() {
             })
             .join("");
 
-}
-
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
-function setupNavigation() {
-
     document
-        .querySelectorAll(".nav-item")
+        .querySelectorAll(
+            "[data-toggle-todo]"
+        )
         .forEach(button => {
 
             button.addEventListener(
                 "click",
-                () => {
-
-                    showPage(
-                        button.dataset.page
-                    );
-
-                }
+                () =>
+                    toggleTodo(
+                        button.dataset.toggleTodo
+                    )
             );
 
         });
 
+    document
+        .querySelectorAll(
+            "[data-delete-todo]"
+        )
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () =>
+                    deleteTodo(
+                        button.dataset.deleteTodo
+                    )
+            );
+
+        });
 }
 
 
-/* =========================================================
-   BOUTONS
-   ========================================================= */
+async function addTodo() {
+
+    const title =
+        prompt(
+            "Quel est le devoir ou la tâche ?"
+        );
+
+    if (!title) return;
+
+    const due =
+        prompt(
+            "Date et heure limite ?\nExemple : 25/09/2026 18:00\nTu peux laisser vide."
+        );
+
+    let dueAt = null;
+
+    if (due) {
+
+        const parsed =
+            parseFrenchDateTime(
+                due
+            );
+
+        if (!parsed) {
+
+            alert(
+                "Date invalide. Exemple : 25/09/2026 18:00"
+            );
+
+            return;
+        }
+
+        dueAt =
+            parsed.toISOString();
+    }
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("todos")
+            .insert({
+                user_id:
+                    currentUser.id,
+                title:
+                    title.trim(),
+                due_at:
+                    dueAt,
+                completed:
+                    false
+            });
+
+    if (error) {
+
+        alert(
+            "Erreur : " +
+            error.message
+        );
+
+        return;
+    }
+
+    await loadTodos();
+
+    showTodo();
+}
+
+
+async function toggleTodo(id) {
+
+    const todo =
+        todos.find(
+            item =>
+                String(item.id) ===
+                String(id)
+        );
+
+    if (!todo) return;
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("todos")
+            .update({
+                completed:
+                    !todo.completed
+            })
+            .eq(
+                "id",
+                id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+    if (error) {
+
+        alert(
+            "Erreur : " +
+            error.message
+        );
+
+        return;
+    }
+
+    await loadTodos();
+
+    showTodo();
+}
+
+
+async function deleteTodo(id) {
+
+    const confirmed =
+        confirm(
+            "Supprimer cette tâche ?"
+        );
+
+    if (!confirmed) return;
+
+    const {
+        error
+    } =
+        await supabaseClient
+            .from("todos")
+            .delete()
+            .eq(
+                "id",
+                id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
+
+    if (error) {
+
+        alert(
+            "Erreur : " +
+            error.message
+        );
+
+        return;
+    }
+
+    await loadTodos();
+
+    showTodo();
+}
+
+
+function parseFrenchDateTime(value) {
+
+    const match =
+        value.match(
+            /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/
+        );
+
+    if (!match) {
+        return null;
+    }
+
+    const day =
+        Number(match[1]);
+
+    const month =
+        Number(match[2]) - 1;
+
+    const year =
+        Number(match[3]);
+
+    const hour =
+        Number(match[4] || 23);
+
+    const minute =
+        Number(match[5] || 59);
+
+    const date =
+        new Date(
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            0
+        );
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month ||
+        date.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return date;
+}
+
+
+// =========================================================
+// BREVET
+// =========================================================
+
+function showBrevet() {
+
+    const average =
+        document.getElementById(
+            "average-card"
+        )?.textContent || "—";
+
+    const target =
+        localStorage.getItem(
+            `brevettrack_target_${currentUser.id}`
+        ) || "—";
+
+    main.innerHTML = `
+
+        <section class="hero-card">
+
+            <div>
+
+                <p class="hero-label">
+                    ESTIMATION
+                </p>
+
+                <h2>
+                    Ton brevet
+                </h2>
+
+                <p class="hero-text">
+                    Cette estimation évoluera avec tes résultats.
+                </p>
+
+            </div>
+
+            <div class="hero-score">
+
+                <span>
+                    ${average}
+                </span>
+
+                <small>
+                    /20
+                </small>
+
+                <p>
+                    moyenne actuelle
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-top">
+                    <span>Moyenne</span>
+                    <span>↗</span>
+                </div>
+
+                <strong>
+                    ${average}
+                </strong>
+
+                <p>
+                    /20
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-top">
+                    <span>Objectif</span>
+                    <span>◎</span>
+                </div>
+
+                <strong>
+                    ${target}
+                </strong>
+
+                <p>
+                    /20
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-top">
+                    <span>Notes</span>
+                    <span>▤</span>
+                </div>
+
+                <strong>
+                    ${grades.length}
+                </strong>
+
+                <p>
+                    enregistrées
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <section class="card">
+
+            <h2>
+                Simulation
+            </h2>
+
+            <p
+                style="
+                    color:#7b8190;
+                    margin-top:8px;
+                "
+            >
+                Ajoute davantage de notes pour obtenir une estimation plus représentative.
+            </p>
+
+        </section>
+    `;
+}
+
+
+// =========================================================
+// CALENDRIER
+// =========================================================
+
+function showCalendar() {
+
+    const today =
+        new Date().toLocaleDateString(
+            "fr-FR",
+            {
+                weekday: "long",
+                day: "numeric",
+                month: "long"
+            }
+        );
+
+    main.innerHTML = `
+
+        <section class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <p class="eyebrow">
+                        CALENDRIER
+                    </p>
+
+                    <h2>
+                        ${today}
+                    </h2>
+
+                    <p>
+                        Organise tes contrôles, devoirs et révisions.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="empty">
+
+                <div class="empty-icon">
+                    ◷
+                </div>
+
+                <h3>
+                    Ton calendrier
+                </h3>
+
+                <p>
+                    Les événements scolaires pourront être ajoutés ici.
+                </p>
+
+            </div>
+
+        </section>
+    `;
+}
+
+
+// =========================================================
+// NOTES — PAGE COMPLÈTE
+// =========================================================
+
+function showNotes() {
+
+    main.innerHTML = `
+
+        <section class="card">
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Toutes mes notes
+                    </h2>
+
+                    <p>
+                        ${grades.length}
+                        note(s) enregistrée(s)
+                    </p>
+
+                </div>
+
+                <button
+                    id="notes-add-btn"
+                    class="primary-btn"
+                >
+                    + Ajouter une note
+                </button>
+
+            </div>
+
+
+            <div id="notes-page-list">
+            </div>
+
+        </section>
+    `;
+
+    const container =
+        document.getElementById(
+            "notes-page-list"
+        );
+
+    if (!container) return;
+
+    if (grades.length === 0) {
+
+        container.innerHTML = `
+            <div class="empty">
+
+                <div class="empty-icon">
+                    ▤
+                </div>
+
+                <h3>
+                    Aucune note
+                </h3>
+
+                <p>
+                    Ajoute une note pour commencer.
+                </p>
+
+            </div>
+        `;
+
+    } else {
+
+        container.innerHTML =
+            grades
+                .map(grade => {
+
+                    const reward =
+                        getGradeReward(
+                            grade.grade
+                        );
+
+                    return `
+                        <div class="grade-row">
+
+                            <strong>
+                                ${escapeHTML(
+                                    grade.subject
+                                )}
+                            </strong>
+
+                            <div class="grade-value">
+                                ${grade.grade}/20
+                            </div>
+
+                            <div>
+                                Coef.
+                                ${grade.coefficient || 1}
+                            </div>
+
+                            <div>
+                                ${escapeHTML(
+                                    grade.grade_type ||
+                                    "Note"
+                                )}
+                            </div>
+
+                            <div>
+                                ${reward > 0
+                                    ? "+" +
+                                      reward +
+                                      " DH"
+                                    : reward < 0
+                                        ? reward +
+                                          " DH"
+                                        : "0 DH"}
+                            </div>
+
+                            <button
+                                class="delete-grade"
+                                data-delete-grade="${grade.id}"
+                            >
+                                Supprimer
+                            </button>
+
+                        </div>
+                    `;
+
+                })
+                .join("");
+    }
+
+    document
+        .getElementById(
+            "notes-add-btn"
+        )
+        ?.addEventListener(
+            "click",
+            openGradeModal
+        );
+
+    document
+        .querySelectorAll(
+            "[data-delete-grade]"
+        )
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () =>
+                    deleteGrade(
+                        button.dataset.deleteGrade
+                    )
+            );
+
+        });
+}
+
+
+// =========================================================
+// NAVIGATION
+// =========================================================
+
+function setupNavigation() {
+
+    const buttons =
+        document.querySelectorAll(
+            ".nav-item"
+        );
+
+    buttons.forEach(button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                buttons.forEach(
+                    btn =>
+                        btn.classList.remove(
+                            "active"
+                        )
+                );
+
+                button.classList.add(
+                    "active"
+                );
+
+                const page =
+                    button.dataset.page;
+
+                if (page === "dashboard") {
+                    location.reload();
+                }
+
+                if (page === "notes") {
+                    showNotes();
+                }
+
+                if (page === "todo") {
+                    showTodo();
+                }
+
+                if (page === "brevet") {
+                    showBrevet();
+                }
+
+                if (page === "calendar") {
+                    showCalendar();
+                }
+
+                if (page === "money") {
+                    showMoney();
+                }
+
+                closeMobileMenu();
+            }
+        );
+
+    });
+}
+
+
+// =========================================================
+// BOUTONS
+// =========================================================
 
 function setupButtons() {
 
@@ -2618,17 +2702,6 @@ function setupButtons() {
             openGradeModal
         );
 
-
-    document
-        .getElementById(
-            "add-grade-btn-notes"
-        )
-        ?.addEventListener(
-            "click",
-            openGradeModal
-        );
-
-
     document
         .getElementById(
             "close-modal"
@@ -2637,7 +2710,6 @@ function setupButtons() {
             "click",
             closeGradeModal
         );
-
 
     document
         .getElementById(
@@ -2648,7 +2720,6 @@ function setupButtons() {
             saveGrade
         );
 
-
     document
         .getElementById(
             "target-btn"
@@ -2658,16 +2729,14 @@ function setupButtons() {
             saveTarget
         );
 
-
     document
         .getElementById(
-            "add-money-btn"
+            "logout-btn"
         )
         ?.addEventListener(
             "click",
-            openMoneyModal
+            logout
         );
-
 
     document
         .getElementById(
@@ -2678,7 +2747,6 @@ function setupButtons() {
             closeMoneyModal
         );
 
-
     document
         .getElementById(
             "save-money-btn"
@@ -2687,17 +2755,6 @@ function setupButtons() {
             "click",
             saveMoney
         );
-
-
-    document
-        .getElementById(
-            "edit-balances-btn"
-        )
-        ?.addEventListener(
-            "click",
-            openBalanceModal
-        );
-
 
     document
         .getElementById(
@@ -2708,7 +2765,6 @@ function setupButtons() {
             closeBalanceModal
         );
 
-
     document
         .getElementById(
             "save-balances-btn"
@@ -2718,159 +2774,238 @@ function setupButtons() {
             saveBalances
         );
 
-
-    document
-        .getElementById(
-            "add-todo-btn"
-        )
-        ?.addEventListener(
-            "click",
-            () => {
-
-                document
-                    .getElementById(
-                        "todo-form"
-                    )
-                    ?.classList.toggle(
-                        "hidden"
-                    );
-
-            }
-        );
-
-
-    document
-        .getElementById(
-            "save-todo-btn"
-        )
-        ?.addEventListener(
-            "click",
-            addTodo
-        );
-
-
-    document
-        .getElementById(
-            "calendar-date"
-        )
-        ?.addEventListener(
-            "change",
-            renderCalendar
-        );
-
-
-    document
-        .getElementById(
-            "logout-btn"
-        )
-        ?.addEventListener(
-            "click",
-            async () => {
-
-                await supabaseClient
-                    .auth
-                    .signOut();
-
-                location.reload();
-
-            }
-        );
-
-
-    document
-        .getElementById(
-            "profile-btn"
-        )
-        ?.addEventListener(
-            "click",
-            () => {
-
-                alert(
-                    `Connecté avec : ${currentUser.email}`
-                );
-
-            }
-        );
-
-
-    document
-        .getElementById(
-            "type-input"
-        )
-        ?.addEventListener(
-            "change",
-            () => {}
-        );
-
-
     document
         .getElementById(
             "money-type"
         )
         ?.addEventListener(
             "change",
-            event => {
-
-                const input =
-                    document.getElementById(
-                        "money-amount"
-                    );
-
-                if (
-                    event.target.value ===
-                    "encouragement"
-                ) {
-
-                    input.value = "100";
-
-                } else if (
-                    event.target.value ===
-                    "observation"
-                ) {
-
-                    input.value = "-150";
-
-                }
-
-            }
+            updateManualMoneyPreview
         );
 
-
-    /*
-       Fermer les modales en cliquant
-       sur le fond.
-    */
-
     document
-        .querySelectorAll(".modal")
-        .forEach(modalElement => {
-
-            modalElement.addEventListener(
-                "click",
-                event => {
-
-                    if (
-                        event.target ===
-                        modalElement
-                    ) {
-
-                        modalElement.classList.add(
-                            "hidden"
-                        );
-
-                    }
-
-                }
-            );
-
-        });
-
+        .getElementById(
+            "money-amount"
+        )
+        ?.addEventListener(
+            "input",
+            updateManualMoneyPreview
+        );
 }
 
 
-/* =========================================================
-   MENU MOBILE
-   ========================================================= */
+// =========================================================
+// APERÇU OPÉRATION MANUELLE
+// =========================================================
+
+function updateManualMoneyPreview() {
+
+    const amount =
+        Number(
+            document.getElementById(
+                "money-amount"
+            )?.value
+        );
+
+    const type =
+        document.getElementById(
+            "money-type"
+        )?.value;
+
+    const input =
+        document.getElementById(
+            "money-amount"
+        );
+
+    if (!input) return;
+
+    if (type === "encouragement") {
+        input.value = "100";
+        input.disabled = true;
+    } else if (
+        type === "observation"
+    ) {
+        input.value = "-150";
+        input.disabled = true;
+    } else {
+        input.disabled = false;
+    }
+}
+
+
+// =========================================================
+// OBJECTIF
+// =========================================================
+
+function loadTarget() {
+
+    const target =
+        localStorage.getItem(
+            `brevettrack_target_${currentUser.id}`
+        );
+
+    if (!target) return;
+
+    const targetValue =
+        Number(target);
+
+    const targetAverage =
+        document.getElementById(
+            "target-average"
+        );
+
+    const targetCircle =
+        document.getElementById(
+            "target-circle-value"
+        );
+
+    const targetInput =
+        document.getElementById(
+            "target-input"
+        );
+
+    if (targetAverage) {
+        targetAverage.textContent =
+            targetValue.toFixed(1);
+    }
+
+    if (targetCircle) {
+        targetCircle.textContent =
+            targetValue.toFixed(1);
+    }
+
+    if (targetInput) {
+        targetInput.value =
+            targetValue;
+    }
+
+    const average =
+        Number(
+            document.getElementById(
+                "average-card"
+            )?.textContent
+        );
+
+    updateProgress(average);
+}
+
+
+function saveTarget() {
+
+    const target =
+        Number(
+            document.getElementById(
+                "target-input"
+            )?.value
+        );
+
+    if (
+        isNaN(target) ||
+        target < 0 ||
+        target > 20
+    ) {
+
+        alert(
+            "Entre une moyenne entre 0 et 20."
+        );
+
+        return;
+    }
+
+    localStorage.setItem(
+        `brevettrack_target_${currentUser.id}`,
+        target
+    );
+
+    const targetAverage =
+        document.getElementById(
+            "target-average"
+        );
+
+    const targetCircle =
+        document.getElementById(
+            "target-circle-value"
+        );
+
+    if (targetAverage) {
+        targetAverage.textContent =
+            target.toFixed(1);
+    }
+
+    if (targetCircle) {
+        targetCircle.textContent =
+            target.toFixed(1);
+    }
+
+    const average =
+        Number(
+            document.getElementById(
+                "average-card"
+            )?.textContent
+        );
+
+    updateProgress(average);
+}
+
+
+function updateProgress(average) {
+
+    const target =
+        Number(
+            localStorage.getItem(
+                `brevettrack_target_${currentUser.id}`
+            )
+        );
+
+    const progressBar =
+        document.getElementById(
+            "progress-bar"
+        );
+
+    const progressText =
+        document.getElementById(
+            "progress-text"
+        );
+
+    if (
+        !target ||
+        isNaN(average)
+    ) {
+
+        if (progressBar) {
+            progressBar.style.width =
+                "0%";
+        }
+
+        if (progressText) {
+            progressText.textContent =
+                "—";
+        }
+
+        return;
+    }
+
+    const percentage =
+        Math.min(
+            (average / target) * 100,
+            100
+        );
+
+    if (progressBar) {
+        progressBar.style.width =
+            `${percentage}%`;
+    }
+
+    if (progressText) {
+        progressText.textContent =
+            `${Math.round(percentage)}%`;
+    }
+}
+
+
+// =========================================================
+// MENU MOBILE
+// =========================================================
 
 function setupMobileMenu() {
 
@@ -2889,103 +3024,57 @@ function setupMobileMenu() {
             "mobile-overlay"
         );
 
+    if (button) {
 
-    if (
-        !button ||
-        !sidebar ||
-        !overlay
-    ) {
-        return;
+        button.addEventListener(
+            "click",
+            () => {
+
+                sidebar?.classList.toggle(
+                    "mobile-open"
+                );
+
+                overlay?.classList.toggle(
+                    "visible"
+                );
+
+            }
+        );
     }
 
+    if (overlay) {
 
-    button.onclick =
-        toggleMobileMenu;
-
-
-    overlay.onclick =
-        closeMobileMenu;
-
-}
-
-
-function toggleMobileMenu() {
-
-    const sidebar =
-        document.getElementById(
-            "sidebar"
+        overlay.addEventListener(
+            "click",
+            closeMobileMenu
         );
-
-    const overlay =
-        document.getElementById(
-            "mobile-overlay"
-        );
-
-    const button =
-        document.getElementById(
-            "mobile-menu-btn"
-        );
-
-
-    const open =
-        sidebar.classList.toggle(
-            "mobile-open"
-        );
-
-
-    overlay.classList.toggle(
-        "active",
-        open
-    );
-
-
-    button.setAttribute(
-        "aria-expanded",
-        open
-            ? "true"
-            : "false"
-    );
-
+    }
 }
 
 
 function closeMobileMenu() {
 
-    const sidebar =
-        document.getElementById(
+    document
+        .getElementById(
             "sidebar"
+        )
+        ?.classList.remove(
+            "mobile-open"
         );
 
-    const overlay =
-        document.getElementById(
+    document
+        .getElementById(
             "mobile-overlay"
+        )
+        ?.classList.remove(
+            "visible"
         );
-
-    const button =
-        document.getElementById(
-            "mobile-menu-btn"
-        );
-
-
-    sidebar?.classList.remove(
-        "mobile-open"
-    );
-
-    overlay?.classList.remove(
-        "active"
-    );
-
-    button?.setAttribute(
-        "aria-expanded",
-        "false"
-    );
-
 }
 
 
-/* =========================================================
-   NOTIFICATIONS / SERVICE WORKER
-   ========================================================= */
+// =========================================================
+// SERVICE WORKER
+// =========================================================
 
 async function registerServiceWorker() {
 
@@ -2995,188 +3084,100 @@ async function registerServiceWorker() {
         return;
     }
 
-
     try {
 
         await navigator.serviceWorker.register(
             "/sw.js"
         );
 
+        console.log(
+            "Service Worker enregistré."
+        );
+
     } catch (error) {
 
         console.error(
-            "Service worker :",
+            "Service Worker :",
             error
         );
-
     }
-
 }
 
 
-/* =========================================================
-   UTILITAIRES
-   ========================================================= */
+// =========================================================
+// DÉCONNEXION
+// =========================================================
+
+async function logout() {
+
+    const {
+        error
+    } =
+        await supabaseClient.auth.signOut();
+
+    if (error) {
+
+        alert(
+            "Erreur : " +
+            error.message
+        );
+
+        return;
+    }
+
+    window.location.href =
+        "index.html";
+}
+
+
+// =========================================================
+// UTILITAIRES
+// =========================================================
 
 function escapeHTML(value) {
 
-    const div =
-        document.createElement(
-            "div"
+    return String(value ?? "")
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
         );
-
-    div.textContent =
-        value ?? "";
-
-    return div.innerHTML;
-
 }
 
 
-function getTodayISO() {
+// =========================================================
+// FERMETURE MODALES EN CLIQUANT À L'EXTÉRIEUR
+// =========================================================
 
-    const date =
-        new Date();
-
-
-    const year =
-        date.getFullYear();
-
-
-    const month =
-        String(
-            date.getMonth() + 1
-        )
-        .padStart(
-            2,
-            "0"
-        );
-
-
-    const day =
-        String(
-            date.getDate()
-        )
-        .padStart(
-            2,
-            "0"
-        );
-
-
-    return `${year}-${month}-${day}`;
-
-}
-
-
-function formatDate(dateValue) {
-
-    if (!dateValue) {
-        return "—";
-    }
-
-
-    const date =
-        new Date(dateValue);
-
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return "—";
-    }
-
-
-    return date.toLocaleDateString(
-        "fr-FR"
-    );
-
-}
-
-
-function formatDateTime(dateValue) {
-
-    if (!dateValue) {
-        return "Sans date";
-    }
-
-
-    const date =
-        new Date(dateValue);
-
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-        return "Sans date";
-    }
-
-
-    return date.toLocaleString(
-        "fr-FR",
-        {
-            dateStyle: "short",
-            timeStyle: "short"
-        }
-    );
-
-}
-
-
-/* =========================================================
-   AUTH STATE
-   ========================================================= */
-
-supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
+document.addEventListener(
+    "click",
+    event => {
 
         if (
-            event === "SIGNED_OUT"
+            event.target.classList.contains(
+                "modal"
+            )
         ) {
 
-            currentUser = null;
-
-            location.reload();
-
-            return;
-        }
-
-
-        if (
-            session &&
-            !currentUser
-        ) {
-
-            currentUser =
-                session.user;
-
-            document
-                .getElementById(
-                    "auth-screen"
-                )
-                ?.classList.add(
-                    "hidden"
-                );
-
-            document
-                .getElementById(
-                    "app"
-                )
-                ?.classList.remove(
-                    "hidden"
-                );
-
+            event.target.classList.add(
+                "hidden"
+            );
         }
 
     }
 );
-
-
-/* =========================================================
-   LANCEMENT
-   ========================================================= */
-
-startApp();
