@@ -3,26 +3,94 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrevetTrack</title>
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+<!-- =========================
+     CONNEXION
+========================= -->
+
+<div id="login-screen">
+
+    <div class="auth-card">
+
+        <div class="auth-logo">
+            <div class="logo-icon">B</div>
+            <span>BrevetTrack</span>
+        </div>
+
+        <h1>Connexion</h1>
+
+        <p>
+            Connecte-toi à ton espace BrevetTrack.
+        </p>
+
+        <label>Email</label>
+
+        <input
+            id="login-email"
+            type="email"
+            placeholder="ton@email.com"
+        >
+
+        <label>Mot de passe</label>
+
+        <input
+            id="login-password"
+            type="password"
+            placeholder="Mot de passe"
+        >
+
+        <div class="auth-actions">
+
+            <button
+                id="login-btn"
+                class="auth-button"
+                type="button"
+            >
+                Se connecter
+            </button>
+
+            <button
+                id="signup-btn"
+                class="secondary-btn"
+                type="button"
+            >
+                Créer un compte
+            </button>
+
+        </div>
+
+        <p
+            id="auth-message"
+            class="auth-message"
+        ></p>
+
+    </div>
+
+</div>
+
+
+<!-- =========================
+     APPLICATION
+========================= -->
+
 <div id="app">
 
-    <!-- =====================================================
-         SIDEBAR
-         ===================================================== -->
+    <!-- MENU MOBILE -->
+
+    <div
+        id="mobile-overlay"
+        class="mobile-overlay"
+    ></div>
+
+
+    <!-- SIDEBAR -->
 
     <aside
         id="sidebar"
@@ -47,6 +115,7 @@
             <button
                 class="nav-item active"
                 data-page="dashboard"
+                type="button"
             >
                 ⌂
                 <span>
@@ -58,6 +127,7 @@
             <button
                 class="nav-item"
                 data-page="notes"
+                type="button"
             >
                 ▣
                 <span>
@@ -68,18 +138,8 @@
 
             <button
                 class="nav-item"
-                data-page="money"
-            >
-                DH
-                <span>
-                    Argent
-                </span>
-            </button>
-
-
-            <button
-                class="nav-item"
                 data-page="todo"
+                type="button"
             >
                 ✓
                 <span>
@@ -91,6 +151,7 @@
             <button
                 class="nav-item"
                 data-page="brevet"
+                type="button"
             >
                 ▤
                 <span>
@@ -102,10 +163,23 @@
             <button
                 class="nav-item"
                 data-page="calendar"
+                type="button"
             >
                 ◷
                 <span>
                     Calendrier
+                </span>
+            </button>
+
+
+            <button
+                class="nav-item"
+                data-page="money"
+                type="button"
+            >
+                DH
+                <span>
+                    Argent
                 </span>
             </button>
 
@@ -114,21 +188,29 @@
 
         <div class="sidebar-bottom">
 
-            <div class="sidebar-profile">
+            <div
+                class="sidebar-user"
+            >
 
-                <div class="avatar">
-                    C
+                <div
+                    class="avatar"
+                >
+                    B
                 </div>
 
                 <div>
 
-                    <strong id="sidebar-name">
+                    <strong
+                        id="sidebar-name"
+                    >
                         —
                     </strong>
 
-                    <span id="sidebar-email">
+                    <small
+                        id="sidebar-email"
+                    >
                         —
-                    </span>
+                    </small>
 
                 </div>
 
@@ -138,6 +220,7 @@
             <button
                 id="logout-btn"
                 class="logout-btn"
+                type="button"
             >
                 ↪ Déconnexion
             </button>
@@ -147,45 +230,28 @@
     </aside>
 
 
-    <!-- =====================================================
-         MOBILE OVERLAY
-         ===================================================== -->
-
-    <div
-        id="mobile-overlay"
-        class="mobile-overlay"
-    ></div>
-
-
-    <!-- =====================================================
-         CONTENU
-         ===================================================== -->
+    <!-- CONTENU -->
 
     <div class="content">
 
-        <!-- =================================================
-             TOPBAR
-             ================================================= -->
-
         <header class="topbar">
 
-            <button
-                id="mobile-menu-btn"
-                class="mobile-menu-btn"
-                type="button"
-            >
-                ☰
-            </button>
-
-
             <div>
+
+                <button
+                    id="mobile-menu-btn"
+                    class="mobile-menu-btn"
+                    type="button"
+                >
+                    ☰
+                </button>
 
                 <p class="eyebrow">
                     TABLEAU DE BORD
                 </p>
 
                 <h1 id="welcome">
-                    Bonjour 👋
+                    Bonjour
                 </h1>
 
             </div>
@@ -193,8 +259,11 @@
 
             <div class="profile">
 
-                <div class="avatar">
-                    C
+                <div
+                    id="avatar"
+                    class="avatar"
+                >
+                    B
                 </div>
 
             </div>
@@ -202,15 +271,11 @@
         </header>
 
 
-        <!-- =================================================
-             MAIN
-             ================================================= -->
-
         <main>
 
-            <!-- =============================================
+            <!-- =========================
                  HERO
-                 ============================================= -->
+            ========================= -->
 
             <section class="hero-card">
 
@@ -225,8 +290,7 @@
                     </h2>
 
                     <p class="hero-text">
-                        Suis tes résultats et prépare ton
-                        brevet sereinement.
+                        Suis tes résultats et prépare ton brevet sereinement.
                     </p>
 
                 </div>
@@ -251,19 +315,15 @@
             </section>
 
 
-            <!-- =============================================
-                 STATISTIQUES
-                 ============================================= -->
+            <!-- =========================
+                 STATS
+            ========================= -->
 
             <section class="stats-grid">
-
-
-                <!-- MOYENNE -->
 
                 <div class="stat-card">
 
                     <div class="stat-top">
-
                         <span>
                             Moyenne générale
                         </span>
@@ -271,7 +331,6 @@
                         <span class="stat-icon">
                             ↗
                         </span>
-
                     </div>
 
                     <strong id="average-card">
@@ -285,12 +344,9 @@
                 </div>
 
 
-                <!-- ARGENT TOTAL -->
-
                 <div class="stat-card">
 
                     <div class="stat-top">
-
                         <span>
                             Argent total
                         </span>
@@ -298,7 +354,6 @@
                         <span class="stat-icon">
                             DH
                         </span>
-
                     </div>
 
                     <strong id="money-total">
@@ -306,18 +361,15 @@
                     </strong>
 
                     <p>
-                        Banque + Épargne + Espèces
+                        tous comptes
                     </p>
 
                 </div>
 
 
-                <!-- OBJECTIF -->
-
                 <div class="stat-card">
 
                     <div class="stat-top">
-
                         <span>
                             Objectif
                         </span>
@@ -325,7 +377,6 @@
                         <span class="stat-icon">
                             ◎
                         </span>
-
                     </div>
 
                     <strong id="target-average">
@@ -339,12 +390,9 @@
                 </div>
 
 
-                <!-- BREVET -->
-
                 <div class="stat-card">
 
                     <div class="stat-top">
-
                         <span>
                             Brevet
                         </span>
@@ -352,7 +400,6 @@
                         <span class="stat-icon">
                             ★
                         </span>
-
                     </div>
 
                     <strong id="brevet-estimate">
@@ -368,16 +415,11 @@
             </section>
 
 
-            <!-- =============================================
+            <!-- =========================
                  DASHBOARD
-                 ============================================= -->
+            ========================= -->
 
             <section class="dashboard-grid">
-
-
-                <!-- =========================================
-                     NOTES
-                     ========================================= -->
 
                 <div class="card notes-card">
 
@@ -399,6 +441,7 @@
                         <button
                             id="add-grade-btn"
                             class="primary-btn"
+                            type="button"
                         >
                             + Ajouter
                         </button>
@@ -419,8 +462,7 @@
                             </h3>
 
                             <p>
-                                Ajoute ta première note
-                                pour commencer.
+                                Ajoute ta première note pour commencer.
                             </p>
 
                         </div>
@@ -430,9 +472,7 @@
                 </div>
 
 
-                <!-- =========================================
-                     OBJECTIF
-                     ========================================= -->
+                <!-- OBJECTIF -->
 
                 <div class="card target-card">
 
@@ -482,7 +522,6 @@
                             placeholder="15"
                         >
 
-
                         <button
                             id="target-btn"
                             type="button"
@@ -523,9 +562,7 @@
             </section>
 
 
-            <!-- =============================================
-                 BREVET
-                 ============================================= -->
+            <!-- BREVET -->
 
             <section class="card brevet-card">
 
@@ -534,7 +571,6 @@
                     <div class="brevet-icon">
                         ★
                     </div>
-
 
                     <div>
 
@@ -547,8 +583,7 @@
                         </h2>
 
                         <p>
-                            Ton estimation évoluera
-                            automatiquement avec tes notes.
+                            Ton estimation évoluera automatiquement avec tes notes.
                         </p>
 
                     </div>
@@ -577,9 +612,9 @@
 </div>
 
 
-<!-- =========================================================
-     MODALE AJOUT NOTE
-     ========================================================= -->
+<!-- =========================
+     MODALE NOTE
+========================= -->
 
 <div
     id="grade-modal"
@@ -601,11 +636,9 @@
             NOUVELLE NOTE
         </p>
 
-
         <h2>
             Ajouter une note
         </h2>
-
 
         <p class="modal-description">
             Entre les informations de ton évaluation.
@@ -701,6 +734,41 @@
         >
 
 
+        <div
+            id="grade-money-account-wrapper"
+        >
+
+            <label>
+                Compte de la récompense
+            </label>
+
+            <select id="grade-money-account">
+
+                <option value="bank">
+                    Banque
+                </option>
+
+                <option value="savings">
+                    Épargne
+                </option>
+
+                <option value="cash">
+                    Espèces
+                </option>
+
+            </select>
+
+
+            <div
+                id="grade-money-preview"
+                class="money-preview"
+            >
+                Récompense : 0 DH
+            </div>
+
+        </div>
+
+
         <button
             id="save-grade-btn"
             class="save-btn"
@@ -717,9 +785,9 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =========================
      MODALE ARGENT
-     ========================================================= -->
+========================= -->
 
 <div
     id="money-modal"
@@ -741,15 +809,30 @@
             ARGENT
         </p>
 
-
         <h2>
             Ajouter une opération
         </h2>
 
 
-        <p class="modal-description">
-            Ajoute ou retire de l'argent de ton suivi.
-        </p>
+        <label>
+            Type
+        </label>
+
+        <select id="money-type">
+
+            <option value="manual">
+                Opération manuelle
+            </option>
+
+            <option value="encouragement">
+                Encouragement (+100 DH)
+            </option>
+
+            <option value="observation">
+                Observation (-150 DH)
+            </option>
+
+        </select>
 
 
         <label>
@@ -786,34 +869,13 @@
 
 
         <label>
-            Type
-        </label>
-
-        <select id="money-type">
-
-            <option value="manual">
-                Opération manuelle
-            </option>
-
-            <option value="encouragement">
-                Encouragement +100 DH
-            </option>
-
-            <option value="observation">
-                Observation -150 DH
-            </option>
-
-        </select>
-
-
-        <label>
             Description
         </label>
 
         <input
             id="money-description"
             type="text"
-            placeholder="Exemple : argent reçu"
+            placeholder="Exemple : argent de poche"
         >
 
 
@@ -822,7 +884,7 @@
             class="save-btn"
             type="button"
         >
-            Ajouter l'opération
+            Ajouter
         </button>
 
 
@@ -833,9 +895,9 @@
 </div>
 
 
-<!-- =========================================================
+<!-- =========================
      MODALE SOLDES
-     ========================================================= -->
+========================= -->
 
 <div
     id="balance-modal"
@@ -857,16 +919,9 @@
             ARGENT
         </p>
 
-
         <h2>
-            Mes soldes
+            Soldes actuels
         </h2>
-
-
-        <p class="modal-description">
-            Indique combien tu as actuellement
-            sur chaque compte.
-        </p>
 
 
         <label>
@@ -921,14 +976,7 @@
 </div>
 
 
-<!-- =========================================================
-     SCRIPTS
-     ========================================================= -->
-
-<script
-    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-></script>
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 
 </body>

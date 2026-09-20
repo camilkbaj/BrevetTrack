@@ -11,6 +11,8 @@ let currentUser = null;
 let grades = [];
 let moneyTransactions = [];
 let todos = [];
+let appInitialized = false;
+let authListenersInitialized = false;
 
 const main = document.querySelector("main");
 const modal = document.getElementById("grade-modal");
@@ -32,21 +34,24 @@ async function startApp() {
 
     if (!session) {
         showLoginScreen();
-        return;
+    } else {
+        await initializeApp(session.user);
     }
 
-    await initializeApp(session.user);
+    if (!authListenersInitialized) {
+        authListenersInitialized = true;
 
-    supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
-        if (nextSession?.user) {
-            if (!currentUser || currentUser.id !== nextSession.user.id) {
-                await initializeApp(nextSession.user);
+        supabaseClient.auth.onAuthStateChange(
+            async (_event, session) => {
+
+                if (session?.user) {
+                    await initializeApp(session.user);
+                } else {
+                    showLoginScreen();
+                }
             }
-        } else {
-            currentUser = null;
-            showLoginScreen();
-        }
-    });
+        );
+    }
 }
 
 async function initializeApp(user) {
@@ -54,6 +59,13 @@ async function initializeApp(user) {
     currentUser = user;
 
     showAppScreen();
+
+    if (appInitialized) {
+        updateMoneyDashboard();
+        return;
+    }
+
+    appInitialized = true;
 
     await loadProfile();
     await loadGrades();
@@ -74,9 +86,11 @@ async function initializeApp(user) {
 
 function setupAuthUI() {
 
-    const loginButton = document.getElementById("login-btn");
-    const signupButton = document.getElementById("signup-btn");
-    const logoutButton = document.getElementById("logout-btn");
+    const loginButton =
+        document.getElementById("login-btn");
+
+    const signupButton =
+        document.getElementById("signup-btn");
 
     if (loginButton && !loginButton.dataset.bound) {
         loginButton.dataset.bound = "1";
@@ -87,33 +101,41 @@ function setupAuthUI() {
         signupButton.dataset.bound = "1";
         signupButton.addEventListener("click", signupUser);
     }
-
-    if (logoutButton && !logoutButton.dataset.bound) {
-        logoutButton.dataset.bound = "1";
-        logoutButton.addEventListener("click", logout);
-    }
 }
 
 async function loginUser() {
 
-    const email = document.getElementById("login-email")?.value.trim();
-    const password = document.getElementById("login-password")?.value;
-    const message = document.getElementById("auth-message");
+    const email =
+        document.getElementById("login-email")?.value.trim();
+
+    const password =
+        document.getElementById("login-password")?.value;
+
+    const message =
+        document.getElementById("auth-message");
 
     if (!email || !password) {
-        if (message) message.textContent = "Remplis tous les champs.";
+        if (message) {
+            message.textContent =
+                "Remplis tous les champs.";
+        }
         return;
     }
 
-    if (message) message.textContent = "Connexion...";
+    if (message) {
+        message.textContent = "Connexion...";
+    }
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-    });
+    const { data, error } =
+        await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+        });
 
     if (error) {
-        if (message) message.textContent = error.message;
+        if (message) {
+            message.textContent = error.message;
+        }
         return;
     }
 
@@ -122,12 +144,20 @@ async function loginUser() {
 
 async function signupUser() {
 
-    const email = document.getElementById("login-email")?.value.trim();
-    const password = document.getElementById("login-password")?.value;
-    const message = document.getElementById("auth-message");
+    const email =
+        document.getElementById("login-email")?.value.trim();
+
+    const password =
+        document.getElementById("login-password")?.value;
+
+    const message =
+        document.getElementById("auth-message");
 
     if (!email || !password) {
-        if (message) message.textContent = "Remplis tous les champs.";
+        if (message) {
+            message.textContent =
+                "Remplis tous les champs.";
+        }
         return;
     }
 
@@ -139,15 +169,20 @@ async function signupUser() {
         return;
     }
 
-    if (message) message.textContent = "Création du compte...";
+    if (message) {
+        message.textContent = "Création du compte...";
+    }
 
-    const { data, error } = await supabaseClient.auth.signUp({
-        email,
-        password
-    });
+    const { data, error } =
+        await supabaseClient.auth.signUp({
+            email,
+            password
+        });
 
     if (error) {
-        if (message) message.textContent = error.message;
+        if (message) {
+            message.textContent = error.message;
+        }
         return;
     }
 
@@ -161,11 +196,15 @@ async function signupUser() {
 
 function showLoginScreen() {
 
-    const loginScreen = document.getElementById("login-screen");
-    const app = document.getElementById("app");
+    const loginScreen =
+        document.getElementById("login-screen");
+
+    const app =
+        document.getElementById("app");
 
     if (loginScreen) {
         loginScreen.classList.remove("hidden");
+        loginScreen.style.display = "flex";
     }
 
     if (app) {
@@ -176,11 +215,15 @@ function showLoginScreen() {
 
 function showAppScreen() {
 
-    const loginScreen = document.getElementById("login-screen");
-    const app = document.getElementById("app");
+    const loginScreen =
+        document.getElementById("login-screen");
+
+    const app =
+        document.getElementById("app");
 
     if (loginScreen) {
         loginScreen.classList.add("hidden");
+        loginScreen.style.display = "none";
     }
 
     if (app) {
@@ -212,8 +255,7 @@ async function loadProfile() {
         currentUser.user_metadata?.name ||
         "toi";
 
-    const welcome =
-        document.getElementById("welcome");
+    const welcome = document.getElementById("welcome");
 
     if (welcome) {
         welcome.textContent = `Bonjour ${name} 👋`;
@@ -655,12 +697,9 @@ function updateGradeMoneyPreview() {
 
 function openGradeModal() {
 
-    const currentModal =
-        document.getElementById("grade-modal");
+    if (!modal) return;
 
-    if (!currentModal) return;
-
-    currentModal.classList.remove("hidden");
+    modal.classList.remove("hidden");
 
     const dateInput =
         document.getElementById(
@@ -691,12 +730,9 @@ function openGradeModal() {
 
 function closeGradeModal() {
 
-    const currentModal =
-        document.getElementById("grade-modal");
+    if (!modal) return;
 
-    if (!currentModal) return;
-
-    currentModal.classList.add("hidden");
+    modal.classList.add("hidden");
 }
 
 
@@ -809,6 +845,10 @@ async function saveGrade() {
 
         return;
     }
+
+    // -----------------------------------------
+    // AJOUT AUTOMATIQUE DE LA RÉCOMPENSE
+    // -----------------------------------------
 
     if (reward !== 0) {
 
@@ -1086,29 +1126,42 @@ function getMoneyBalances() {
         transaction => {
 
             const account =
-                transaction.account_type;
+                String(
+                    transaction?.account_type ?? ""
+                ).trim();
 
             if (
-                Object.prototype.hasOwnProperty
+                !Object.prototype.hasOwnProperty
                     .call(
                         balances,
                         account
                     )
-            {
-
-                balances[account] +=
-                    Number(
-                        transaction.amount
-                    ) || 0;
+            ) {
+                return;
             }
 
+            const amount =
+                Number(
+                    transaction?.amount
+                );
+
+            if (
+                !Number.isFinite(amount)
+            ) {
+                return;
+            }
+
+            balances[account] +=
+                amount;
         }
     );
 
     balances.total =
-        balances.bank +
-        balances.savings +
-        balances.cash;
+        Number(
+            balances.bank +
+            balances.savings +
+            balances.cash
+        ) || 0;
 
     return balances;
 }
@@ -1799,6 +1852,9 @@ function closeBalanceModal() {
 
 
 function loadInitialBalanceInputs() {
+
+    const balances =
+        getMoneyBalances();
 
     const bank =
         document.getElementById(
@@ -2755,291 +2811,6 @@ function showNotes() {
 
 
 // =========================================================
-// TABLEAU DE BORD
-// =========================================================
-
-function showDashboard() {
-
-    currentPage = "dashboard";
-
-    const mainElement =
-        document.querySelector("main");
-
-    if (!mainElement) return;
-
-    mainElement.innerHTML = `
-        <section class="hero-card">
-
-            <div>
-                <p class="hero-label">
-                    TA PROGRESSION
-                </p>
-
-                <h2>
-                    Continue comme ça.
-                </h2>
-
-                <p class="hero-text">
-                    Suis tes résultats et prépare ton brevet sereinement.
-                </p>
-            </div>
-
-            <div class="hero-score">
-                <span id="general-average">—</span>
-                <small>/20</small>
-                <p>Moyenne actuelle</p>
-            </div>
-
-        </section>
-
-
-        <section class="stats-grid">
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Moyenne générale</span>
-                    <span class="stat-icon">↗</span>
-                </div>
-
-                <strong id="average-card">
-                    —
-                </strong>
-
-                <p>
-                    sur 20
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Argent total</span>
-                    <span class="stat-icon">€</span>
-                </div>
-
-                <strong id="money-total">
-                    0 DH
-                </strong>
-
-                <p>
-                    tous comptes
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Objectif</span>
-                    <span class="stat-icon">◎</span>
-                </div>
-
-                <strong id="target-average">
-                    —
-                </strong>
-
-                <p>
-                    moyenne visée
-                </p>
-
-            </div>
-
-
-            <div class="stat-card">
-
-                <div class="stat-top">
-                    <span>Brevet</span>
-                    <span class="stat-icon">★</span>
-                </div>
-
-                <strong id="brevet-big">
-                    —
-                </strong>
-
-                <p>
-                    estimation
-                </p>
-
-            </div>
-
-        </section>
-
-
-        <section class="dashboard-grid">
-
-            <div class="card notes-card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2>
-                            Mes dernières notes
-                        </h2>
-
-                        <p>
-                            Ton historique de résultats
-                        </p>
-
-                    </div>
-
-                    <button
-                        id="add-grade-btn"
-                        class="primary-btn"
-                    >
-                        + Ajouter
-                    </button>
-
-                </div>
-
-                <div id="grades-list">
-                </div>
-
-            </div>
-
-
-            <div class="card target-card">
-
-                <div class="card-header">
-
-                    <div>
-
-                        <h2>
-                            Objectif
-                        </h2>
-
-                        <p>
-                            Ta moyenne cible
-                        </p>
-
-                    </div>
-
-                </div>
-
-
-                <div class="target-circle">
-
-                    <span id="target-circle-value">
-                        —
-                    </span>
-
-                    <small>
-                        /20
-                    </small>
-
-                </div>
-
-
-                <label>
-                    Nouvel objectif
-                </label>
-
-
-                <div class="target-input">
-
-                    <input
-                        id="target-input"
-                        type="number"
-                        min="0"
-                        max="20"
-                        step="0.1"
-                        placeholder="15"
-                    >
-
-                    <button
-                        id="target-btn"
-                    >
-                        OK
-                    </button>
-
-                </div>
-
-
-                <div class="progress-area">
-
-                    <div class="progress-label">
-
-                        <span>
-                            Progression
-                        </span>
-
-                        <strong id="progress-text">
-                            —
-                        </strong>
-
-                    </div>
-
-
-                    <div class="progress">
-
-                        <div id="progress-bar">
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <section class="card brevet-card">
-
-            <div class="brevet-left">
-
-                <div class="brevet-icon">
-                    ★
-                </div>
-
-                <div>
-
-                    <p class="eyebrow">
-                        OBJECTIF BREVET
-                    </p>
-
-                    <h2>
-                        Prépare ton diplôme
-                    </h2>
-
-                    <p>
-                        Ton estimation évoluera automatiquement avec tes notes.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <div class="brevet-result">
-
-                <strong id="brevet-estimate">
-                    —
-                </strong>
-
-                <span>
-                    /20
-                </span>
-
-            </div>
-
-        </section>
-    `;
-
-    displayGrades(grades);
-    calculateAverage(grades);
-    loadTarget();
-    updateMoneyDashboard();
-    setupButtons();
-    setupGradeMoneyPreview();
-}
-
-
-// =========================================================
 // NAVIGATION
 // =========================================================
 
@@ -3071,7 +2842,7 @@ function setupNavigation() {
                     button.dataset.page;
 
                 if (page === "dashboard") {
-                    showDashboard();
+                    window.location.reload();
                 }
 
                 if (page === "notes") {
@@ -3215,6 +2986,13 @@ function setupButtons() {
 
 function updateManualMoneyPreview() {
 
+    const amount =
+        Number(
+            document.getElementById(
+                "money-amount"
+            )?.value
+        );
+
     const type =
         document.getElementById(
             "money-type"
@@ -3228,21 +3006,15 @@ function updateManualMoneyPreview() {
     if (!input) return;
 
     if (type === "encouragement") {
-
         input.value = "100";
         input.disabled = true;
-
     } else if (
         type === "observation"
     ) {
-
         input.value = "-150";
         input.disabled = true;
-
     } else {
-
         input.disabled = false;
-
     }
 }
 
@@ -3543,6 +3315,7 @@ async function logout() {
     grades = [];
     moneyTransactions = [];
     todos = [];
+    appInitialized = false;
 
     showLoginScreen();
 }
