@@ -11,29 +11,87 @@ let currentUser = null;
 let grades = [];
 let moneyTransactions = [];
 let todos = [];
+let appInitialized = false;
+let authListenersInitialized = false;
 
 const main = document.querySelector("main");
 const modal = document.getElementById("grade-modal");
 
 
 // =========================================================
-// DÉMARRAGE
+// DÉMARRAGE / AUTHENTIFICATION
 // =========================================================
 
 document.addEventListener("DOMContentLoaded", startApp);
 
 async function startApp() {
 
+    setupAuthUI();
+
     const {
-        data: { session }
+        data: { session },
+        error
     } = await supabaseClient.auth.getSession();
 
-    if (!session) {
-        window.location.href = "index.html";
+    if (error) {
+        console.error("Erreur session :", error);
+        showLoginScreen("Impossible de récupérer la session.");
         return;
     }
 
-    currentUser = session.user;
+    if (!session) {
+        showLoginScreen();
+        return;
+    }
+
+    await initializeApp(session.user);
+
+    if (!authListenersInitialized) {
+        authListenersInitialized = true;
+
+        supabaseClient.auth.onAuthStateChange(
+            (event, newSession) => {
+
+                if (newSession?.user) {
+
+                    if (
+                        !currentUser ||
+                        currentUser.id !== newSession.user.id
+                    ) {
+                        initializeApp(newSession.user);
+                    } else {
+                        showAppScreen();
+                    }
+
+                } else if (event === "SIGNED_OUT") {
+
+                    currentUser = null;
+                    showLoginScreen();
+
+                }
+
+            }
+        );
+    }
+}
+
+
+async function initializeApp(user) {
+
+    currentUser = user;
+
+    showAppScreen();
+
+    if (!appInitialized) {
+
+        setupNavigation();
+        setupButtons();
+        setupMobileMenu();
+        setupGradeMoneyPreview();
+        registerServiceWorker();
+
+        appInitialized = true;
+    }
 
     await loadProfile();
     await loadGrades();
@@ -42,15 +100,268 @@ async function startApp() {
 
     loadTarget();
 
-    setupNavigation();
-    setupButtons();
-    setupMobileMenu();
-    setupGradeMoneyPreview();
-
-    registerServiceWorker();
-
     updateMoneyDashboard();
+}
 
+
+// =========================================================
+// AUTHENTIFICATION
+// =========================================================
+
+function setupAuthUI() {
+
+    const loginButton =
+        document.getElementById("login-btn");
+
+    const signupButton =
+        document.getElementById("signup-btn");
+
+    if (
+        loginButton &&
+        !loginButton.dataset.bound
+    ) {
+
+        loginButton.dataset.bound = "true";
+
+        loginButton.addEventListener(
+            "click",
+            loginUser
+        );
+    }
+
+    if (
+        signupButton &&
+        !signupButton.dataset.bound
+    ) {
+
+        signupButton.dataset.bound = "true";
+
+        signupButton.addEventListener(
+            "click",
+            signupUser
+        );
+    }
+}
+
+
+async function loginUser() {
+
+    const email =
+        document
+            .getElementById("login-email")
+            ?.value
+            .trim();
+
+    const password =
+        document
+            .getElementById("login-password")
+            ?.value;
+
+    const message =
+        document.getElementById(
+            "auth-message"
+        );
+
+    const button =
+        document.getElementById(
+            "login-btn"
+        );
+
+    if (!email || !password) {
+
+        if (message) {
+            message.textContent =
+                "Entre ton email et ton mot de passe.";
+        }
+
+        return;
+    }
+
+    if (button) {
+        button.disabled = true;
+    }
+
+    if (message) {
+        message.textContent =
+            "Connexion...";
+    }
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient.auth.signInWithPassword({
+            email,
+            password
+        });
+
+    if (button) {
+        button.disabled = false;
+    }
+
+    if (error) {
+
+        console.error(
+            "Connexion :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "Erreur : " +
+                error.message;
+        }
+
+        return;
+    }
+
+    if (data?.user) {
+        await initializeApp(
+            data.user
+        );
+    }
+}
+
+
+async function signupUser() {
+
+    const email =
+        document
+            .getElementById("login-email")
+            ?.value
+            .trim();
+
+    const password =
+        document
+            .getElementById("login-password")
+            ?.value;
+
+    const message =
+        document.getElementById(
+            "auth-message"
+        );
+
+    const button =
+        document.getElementById(
+            "signup-btn"
+        );
+
+    if (!email || !password) {
+
+        if (message) {
+            message.textContent =
+                "Entre ton email et un mot de passe.";
+        }
+
+        return;
+    }
+
+    if (password.length < 6) {
+
+        if (message) {
+            message.textContent =
+                "Le mot de passe doit contenir au moins 6 caractères.";
+        }
+
+        return;
+    }
+
+    if (button) {
+        button.disabled = true;
+    }
+
+    if (message) {
+        message.textContent =
+            "Création du compte...";
+    }
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient.auth.signUp({
+            email,
+            password
+        });
+
+    if (button) {
+        button.disabled = false;
+    }
+
+    if (error) {
+
+        console.error(
+            "Inscription :",
+            error
+        );
+
+        if (message) {
+            message.textContent =
+                "Erreur : " +
+                error.message;
+        }
+
+        return;
+    }
+
+    if (
+        data?.session &&
+        data?.user
+    ) {
+
+        await initializeApp(
+            data.user
+        );
+
+    } else if (message) {
+
+        message.textContent =
+            "Compte créé. Vérifie ton email si une confirmation est demandée.";
+    }
+}
+
+
+function showLoginScreen(
+    message = ""
+) {
+
+    document
+        .getElementById("login-screen")
+        ?.classList.remove(
+            "hidden"
+        );
+
+    document
+        .getElementById("app")
+        ?.classList.add(
+            "hidden"
+        );
+
+    const authMessage =
+        document.getElementById(
+            "auth-message"
+        );
+
+    if (authMessage) {
+        authMessage.textContent =
+            message;
+    }
+}
+
+
+function showAppScreen() {
+
+    document
+        .getElementById("login-screen")
+        ?.classList.add(
+            "hidden"
+        );
+
+    document
+        .getElementById("app")
+        ?.classList.remove(
+            "hidden"
+        );
 }
 
 
@@ -60,14 +371,26 @@ async function startApp() {
 
 async function loadProfile() {
 
-    const { data, error } = await supabaseClient
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUser.id)
-        .single();
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select("*")
+            .eq(
+                "id",
+                currentUser.id
+            )
+            .single();
 
     if (error) {
-        console.error("Erreur profil :", error);
+
+        console.error(
+            "Erreur profil :",
+            error
+        );
+
         return;
     }
 
@@ -76,36 +399,53 @@ async function loadProfile() {
         currentUser.user_metadata?.name ||
         "toi";
 
-    const welcome = document.getElementById("welcome");
+    const welcome =
+        document.getElementById(
+            "welcome"
+        );
 
     if (welcome) {
-        welcome.textContent = `Bonjour ${name} 👋`;
+        welcome.textContent =
+            `Bonjour ${name} 👋`;
     }
 
     const sidebarName =
-        document.getElementById("sidebar-name");
+        document.getElementById(
+            "sidebar-name"
+        );
 
     if (sidebarName) {
-        sidebarName.textContent = name;
+        sidebarName.textContent =
+            name;
     }
 
     const sidebarEmail =
-        document.getElementById("sidebar-email");
+        document.getElementById(
+            "sidebar-email"
+        );
 
     if (sidebarEmail) {
         sidebarEmail.textContent =
-            currentUser.email || "—";
+            currentUser.email ||
+            "—";
     }
 
     const initial =
-        name.charAt(0).toUpperCase();
+        name
+            .charAt(0)
+            .toUpperCase();
 
     const avatars =
-        document.querySelectorAll(".avatar");
+        document.querySelectorAll(
+            ".avatar"
+        );
 
-    avatars.forEach(avatar => {
-        avatar.textContent = initial;
-    });
+    avatars.forEach(
+        avatar => {
+            avatar.textContent =
+                initial;
+        }
+    );
 }
 
 
@@ -115,23 +455,45 @@ async function loadProfile() {
 
 async function loadGrades() {
 
-    const { data, error } = await supabaseClient
-        .from("grades")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .order("grade_date", {
-            ascending: false
-        });
+    const {
+        data,
+        error
+    } =
+        await supabaseClient
+            .from("grades")
+            .select("*")
+            .eq(
+                "user_id",
+                currentUser.id
+            )
+            .order(
+                "grade_date",
+                {
+                    ascending: false
+                }
+            );
 
     if (error) {
-        console.error("Erreur notes :", error);
+
+        console.error(
+            "Erreur notes :",
+            error
+        );
+
         return;
     }
 
-    grades = data || [];
+    grades =
+        data || [];
 
-    displayGrades(grades);
-    calculateAverage(grades);
+    displayGrades(
+        grades
+    );
+
+    calculateAverage(
+        grades
+    );
+
     updateMoneyDashboard();
 }
 
@@ -143,28 +505,41 @@ async function loadGrades() {
 function displayGrades(list) {
 
     const container =
-        document.getElementById("grades-list");
+        document.getElementById(
+            "grades-list"
+        );
 
     const count =
-        document.getElementById("grades-count");
+        document.getElementById(
+            "grades-count"
+        );
 
     if (count) {
-        count.textContent = list.length;
+        count.textContent =
+            list.length;
     }
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
     if (list.length === 0) {
 
         container.innerHTML = `
             <div class="empty">
-                <div class="empty-icon">▤</div>
 
-                <h3>Aucune note</h3>
+                <div class="empty-icon">
+                    ▤
+                </div>
+
+                <h3>
+                    Aucune note
+                </h3>
 
                 <p>
                     Ajoute ta première note pour commencer.
                 </p>
+
             </div>
         `;
 
@@ -172,64 +547,83 @@ function displayGrades(list) {
     }
 
     container.innerHTML =
-        list.map(grade => {
+        list
+            .map(
+                grade => {
 
-            const date =
-                grade.grade_date
-                    ? new Date(
+                    const date =
                         grade.grade_date
-                    ).toLocaleDateString("fr-FR")
-                    : "—";
+                            ? new Date(
+                                grade.grade_date
+                            ).toLocaleDateString(
+                                "fr-FR"
+                            )
+                            : "—";
 
-            return `
-                <div class="grade-row">
+                    return `
+                        <div class="grade-row">
 
-                    <strong>
-                        ${escapeHTML(grade.subject)}
-                    </strong>
+                            <strong>
+                                ${escapeHTML(
+                                    grade.subject
+                                )}
+                            </strong>
 
-                    <div class="grade-value">
-                        ${Number(grade.grade).toLocaleString("fr-FR")}/20
-                    </div>
+                            <div class="grade-value">
+                                ${Number(
+                                    grade.grade
+                                ).toLocaleString(
+                                    "fr-FR"
+                                )}/20
+                            </div>
 
-                    <div>
-                        Coef. ${grade.coefficient || 1}
-                    </div>
+                            <div>
+                                Coef.
+                                ${grade.coefficient || 1}
+                            </div>
 
-                    <div class="grade-type">
-                        ${escapeHTML(
-                            grade.grade_type || "Note"
-                        )}
-                    </div>
+                            <div class="grade-type">
+                                ${escapeHTML(
+                                    grade.grade_type ||
+                                    "Note"
+                                )}
+                            </div>
 
-                    <div class="grade-date">
-                        ${date}
-                    </div>
+                            <div class="grade-date">
+                                ${date}
+                            </div>
 
-                    <button
-                        class="delete-grade"
-                        data-delete-grade="${grade.id}"
-                    >
-                        Supprimer
-                    </button>
+                            <button
+                                class="delete-grade"
+                                data-delete-grade="${grade.id}"
+                            >
+                                Supprimer
+                            </button>
 
-                </div>
-            `;
+                        </div>
+                    `;
 
-        }).join("");
+                }
+            )
+            .join("");
 
     document
-        .querySelectorAll("[data-delete-grade]")
-        .forEach(button => {
+        .querySelectorAll(
+            "[data-delete-grade]"
+        )
+        .forEach(
+            button => {
 
-            button.addEventListener(
-                "click",
-                () => deleteGrade(
-                    button.dataset.deleteGrade
-                )
-            );
+                button.addEventListener(
+                    "click",
+                    () =>
+                        deleteGrade(
+                            button.dataset.deleteGrade
+                        )
+                );
 
-        });
+            }
+        );
 }
 
 
@@ -254,14 +648,18 @@ function calculateAverage(list) {
             );
 
         if (brevetEstimate) {
-            brevetEstimate.textContent = "—";
+            brevetEstimate.textContent =
+                "—";
         }
 
         if (brevetBig) {
-            brevetBig.textContent = "—";
+            brevetBig.textContent =
+                "—";
         }
 
-        updateProgress(NaN);
+        updateProgress(
+            NaN
+        );
 
         return;
     }
@@ -269,28 +667,38 @@ function calculateAverage(list) {
     let total = 0;
     let coefficients = 0;
 
-    list.forEach(grade => {
+    list.forEach(
+        grade => {
 
-        const gradeValue =
-            Number(grade.grade);
+            const gradeValue =
+                Number(
+                    grade.grade
+                );
 
-        const coefficient =
-            Number(grade.coefficient) || 1;
+            const coefficient =
+                Number(
+                    grade.coefficient
+                ) || 1;
 
-        total +=
-            gradeValue * coefficient;
+            total +=
+                gradeValue *
+                coefficient;
 
-        coefficients += coefficient;
-
-    });
+            coefficients +=
+                coefficient;
+        }
+    );
 
     const average =
-        total / coefficients;
+        total /
+        coefficients;
 
     const formatted =
         average.toFixed(2);
 
-    setAverage(formatted);
+    setAverage(
+        formatted
+    );
 
     const brevetEstimate =
         document.getElementById(
@@ -303,14 +711,18 @@ function calculateAverage(list) {
         );
 
     if (brevetEstimate) {
-        brevetEstimate.textContent = formatted;
+        brevetEstimate.textContent =
+            formatted;
     }
 
     if (brevetBig) {
-        brevetBig.textContent = formatted;
+        brevetBig.textContent =
+            formatted;
     }
 
-    updateProgress(average);
+    updateProgress(
+        average
+    );
 }
 
 
@@ -327,11 +739,13 @@ function setAverage(value) {
         );
 
     if (generalAverage) {
-        generalAverage.textContent = value;
+        generalAverage.textContent =
+            value;
     }
 
     if (averageCard) {
-        averageCard.textContent = value;
+        averageCard.textContent =
+            value;
     }
 }
 
@@ -340,39 +754,63 @@ function setAverage(value) {
 // RÉCOMPENSE DES NOTES
 // =========================================================
 
-function getGradeReward(grade) {
+function getGradeReward(
+    grade
+) {
 
-    const value = Number(grade);
+    const value =
+        Number(grade);
 
     if (isNaN(value)) {
         return 0;
     }
 
-    if (value >= 0 && value < 10) {
+    if (
+        value >= 0 &&
+        value < 10
+    ) {
         return -500;
     }
 
-    if (value >= 10 && value < 14) {
+    if (
+        value >= 10 &&
+        value < 14
+    ) {
         return -250;
     }
 
-    if (value >= 14 && value < 16) {
+    if (
+        value >= 14 &&
+        value < 16
+    ) {
         return -150;
     }
 
-    if (value >= 16 && value < 17) {
+    if (
+        value >= 16 &&
+        value < 17
+    ) {
         return 0;
     }
 
-    if (value >= 17 && value < 18.5) {
+    if (
+        value >= 17 &&
+        value < 18.5
+    ) {
         return 250;
     }
 
-    if (value >= 18.5 && value < 19.5) {
+    if (
+        value >= 18.5 &&
+        value < 19.5
+    ) {
         return 300;
     }
 
-    if (value >= 19.5 && value <= 20) {
+    if (
+        value >= 19.5 &&
+        value <= 20
+    ) {
         return 350;
     }
 
@@ -391,7 +829,9 @@ function setupGradeMoneyPreview() {
             "grade-input"
         );
 
-    if (!gradeInput) return;
+    if (!gradeInput) {
+        return;
+    }
 
     gradeInput.addEventListener(
         "input",
@@ -416,7 +856,10 @@ function addMoneyAccountFieldIfMissing() {
             "#grade-modal .modal-card"
         );
 
-    if (!gradeInput || !modalCard) {
+    if (
+        !gradeInput ||
+        !modalCard
+    ) {
         return;
     }
 
@@ -433,10 +876,14 @@ function addMoneyAccountFieldIfMissing() {
             "date-input"
         );
 
-    if (!dateInput) return;
+    if (!dateInput) {
+        return;
+    }
 
     const wrapper =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     wrapper.id =
         "grade-money-account-wrapper";
@@ -489,12 +936,17 @@ function updateGradeMoneyPreview() {
             "grade-money-preview"
         );
 
-    if (!input || !preview) {
+    if (
+        !input ||
+        !preview
+    ) {
         return;
     }
 
     const value =
-        Number(input.value);
+        Number(
+            input.value
+        );
 
     if (isNaN(value)) {
 
@@ -505,10 +957,14 @@ function updateGradeMoneyPreview() {
     }
 
     const reward =
-        getGradeReward(value);
+        getGradeReward(
+            value
+        );
 
     preview.textContent =
-        `Récompense : ${formatDH(reward)}`;
+        `Récompense : ${formatDH(
+            reward
+        )}`;
 }
 
 
@@ -518,9 +974,13 @@ function updateGradeMoneyPreview() {
 
 function openGradeModal() {
 
-    if (!modal) return;
+    if (!modal) {
+        return;
+    }
 
-    modal.classList.remove("hidden");
+    modal.classList.remove(
+        "hidden"
+    );
 
     const dateInput =
         document.getElementById(
@@ -533,7 +993,6 @@ function openGradeModal() {
             new Date()
                 .toISOString()
                 .split("T")[0];
-
     }
 
     const message =
@@ -542,7 +1001,8 @@ function openGradeModal() {
         );
 
     if (message) {
-        message.textContent = "";
+        message.textContent =
+            "";
     }
 
     updateGradeMoneyPreview();
@@ -551,37 +1011,49 @@ function openGradeModal() {
 
 function closeGradeModal() {
 
-    if (!modal) return;
+    if (!modal) {
+        return;
+    }
 
-    modal.classList.add("hidden");
+    modal.classList.add(
+        "hidden"
+    );
 }
 
 
 async function saveGrade() {
 
     const subject =
-        document.getElementById(
-            "subject-input"
-        )?.value.trim();
+        document
+            .getElementById(
+                "subject-input"
+            )
+            ?.value
+            .trim();
 
     const grade =
         Number(
-            document.getElementById(
-                "grade-input"
-            )?.value
+            document
+                .getElementById(
+                    "grade-input"
+                )
+                ?.value
         );
 
     const coefficient =
         Number(
-            document.getElementById(
-                "coefficient-input"
-            )?.value
+            document
+                .getElementById(
+                    "coefficient-input"
+                )
+                ?.value
         );
 
     const type =
         document.getElementById(
             "type-input"
-        )?.value || "Contrôle";
+        )?.value ||
+        "Contrôle";
 
     const date =
         document.getElementById(
@@ -591,7 +1063,8 @@ async function saveGrade() {
     const account =
         document.getElementById(
             "grade-money-account"
-        )?.value || "bank";
+        )?.value ||
+        "bank";
 
     const message =
         document.getElementById(
@@ -627,7 +1100,9 @@ async function saveGrade() {
     }
 
     const reward =
-        getGradeReward(grade);
+        getGradeReward(
+            grade
+        );
 
     if (message) {
         message.textContent =
@@ -641,12 +1116,15 @@ async function saveGrade() {
         await supabaseClient
             .from("grades")
             .insert({
-                user_id: currentUser.id,
+                user_id:
+                    currentUser.id,
                 subject,
                 grade,
                 coefficient,
-                grade_type: type,
-                grade_date: date || null
+                grade_type:
+                    type,
+                grade_date:
+                    date || null
             })
             .select()
             .single();
@@ -667,22 +1145,24 @@ async function saveGrade() {
         return;
     }
 
-    // -----------------------------------------
-    // AJOUT AUTOMATIQUE DE LA RÉCOMPENSE
-    // -----------------------------------------
-
     if (reward !== 0) {
 
         const {
             error: moneyError
         } =
             await supabaseClient
-                .from("money_transactions")
+                .from(
+                    "money_transactions"
+                )
                 .insert({
-                    user_id: currentUser.id,
-                    amount: reward,
-                    account_type: account,
-                    transaction_type: "grade",
+                    user_id:
+                        currentUser.id,
+                    amount:
+                        reward,
+                    account_type:
+                        account,
+                    transaction_type:
+                        "grade",
                     description:
                         `Récompense note ${grade}/20 - ${subject}`,
                     transaction_date:
@@ -696,13 +1176,10 @@ async function saveGrade() {
                 moneyError
             );
 
-            // On ne supprime pas la note :
-            // elle est bien enregistrée.
             if (message) {
                 message.textContent =
                     "Note ajoutée, mais la récompense n'a pas pu être enregistrée.";
             }
-
         }
     }
 
@@ -711,22 +1188,24 @@ async function saveGrade() {
         if (reward > 0) {
 
             message.textContent =
-                `Note ajoutée ! +${formatDH(reward)} automatiquement ajoutés.`;
+                `Note ajoutée ! +${formatDH(
+                    reward
+                )} automatiquement ajoutés.`;
 
         } else if (reward < 0) {
 
             message.textContent =
-                `Note ajoutée ! ${formatDH(reward)} automatiquement retirés.`;
+                `Note ajoutée ! ${formatDH(
+                    reward
+                )} automatiquement retirés.`;
 
         } else {
 
             message.textContent =
                 "Note ajoutée ! Aucun changement d'argent.";
-
         }
     }
 
-    // Reset
     const subjectInput =
         document.getElementById(
             "subject-input"
@@ -743,15 +1222,18 @@ async function saveGrade() {
         );
 
     if (subjectInput) {
-        subjectInput.value = "";
+        subjectInput.value =
+            "";
     }
 
     if (gradeInput) {
-        gradeInput.value = "";
+        gradeInput.value =
+            "";
     }
 
     if (coefficientInput) {
-        coefficientInput.value = "1";
+        coefficientInput.value =
+            "1";
     }
 
     updateGradeMoneyPreview();
@@ -770,24 +1252,30 @@ async function saveGrade() {
 // SUPPRIMER NOTE
 // =========================================================
 
-async function deleteGrade(id) {
+async function deleteGrade(
+    id
+) {
 
     const grade =
         grades.find(
-            item => String(item.id) === String(id)
+            item =>
+                String(item.id) ===
+                String(id)
         );
 
-    if (!grade) return;
+    if (!grade) {
+        return;
+    }
 
     const confirmed =
         confirm(
             "Supprimer cette note ?\n\nLa récompense liée à cette note sera également supprimée."
         );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+        return;
+    }
 
-    // Supprimer d'abord la transaction
-    // liée à cette note.
     const description =
         `Récompense note ${grade.grade}/20 - ${grade.subject}`;
 
@@ -795,13 +1283,25 @@ async function deleteGrade(id) {
         error: moneyError
     } =
         await supabaseClient
-            .from("money_transactions")
+            .from(
+                "money_transactions"
+            )
             .delete()
-            .eq("user_id", currentUser.id)
-            .eq("transaction_type", "grade")
-            .eq("description", description);
+            .eq(
+                "user_id",
+                currentUser.id
+            )
+            .eq(
+                "transaction_type",
+                "grade"
+            )
+            .eq(
+                "description",
+                description
+            );
 
     if (moneyError) {
+
         console.error(
             "Erreur suppression récompense :",
             moneyError
@@ -814,8 +1314,14 @@ async function deleteGrade(id) {
         await supabaseClient
             .from("grades")
             .delete()
-            .eq("id", id)
-            .eq("user_id", currentUser.id);
+            .eq(
+                "id",
+                id
+            )
+            .eq(
+                "user_id",
+                currentUser.id
+            );
 
     if (error) {
 
@@ -830,7 +1336,6 @@ async function deleteGrade(id) {
     await loadGrades();
     await loadMoney();
 
-    // Si on est sur la page Notes
     if (
         document.getElementById(
             "notes-page-list"
@@ -852,9 +1357,14 @@ async function loadMoney() {
         error
     } =
         await supabaseClient
-            .from("money_transactions")
+            .from(
+                "money_transactions"
+            )
             .select("*")
-            .eq("user_id", currentUser.id)
+            .eq(
+                "user_id",
+                currentUser.id
+            )
             .order(
                 "transaction_date",
                 {
@@ -875,7 +1385,8 @@ async function loadMoney() {
             error
         );
 
-        moneyTransactions = [];
+        moneyTransactions =
+            [];
 
         updateMoneyDashboard();
 
@@ -893,7 +1404,9 @@ async function loadMoney() {
 // FORMAT DH
 // =========================================================
 
-function formatDH(amount) {
+function formatDH(
+    amount
+) {
 
     const value =
         Number(amount) || 0;
@@ -908,8 +1421,10 @@ function formatDH(amount) {
         value.toLocaleString(
             "fr-FR",
             {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
+                minimumFractionDigits:
+                    0,
+                maximumFractionDigits:
+                    2
             }
         ) +
         " DH"
@@ -917,7 +1432,9 @@ function formatDH(amount) {
 }
 
 
-function formatAbsoluteDH(amount) {
+function formatAbsoluteDH(
+    amount
+) {
 
     const value =
         Math.abs(
@@ -928,8 +1445,10 @@ function formatAbsoluteDH(amount) {
         value.toLocaleString(
             "fr-FR",
             {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
+                minimumFractionDigits:
+                    0,
+                maximumFractionDigits:
+                    2
             }
         ) +
         " DH"
@@ -968,7 +1487,6 @@ function getMoneyBalances() {
                         transaction.amount
                     ) || 0;
             }
-
         }
     );
 
@@ -1001,8 +1519,10 @@ function updateMoneyDashboard() {
             `${balances.total.toLocaleString(
                 "fr-FR",
                 {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 2
+                    minimumFractionDigits:
+                        0,
+                    maximumFractionDigits:
+                        2
                 }
             )} DH`;
     }
@@ -1080,8 +1600,10 @@ function showMoney() {
                     ${balances.total.toLocaleString(
                         "fr-FR",
                         {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 2
+                            minimumFractionDigits:
+                                0,
+                            maximumFractionDigits:
+                                2
                         }
                     )}
                 </span>
@@ -1239,7 +1761,9 @@ function renderMoneyHistory() {
             "money-history"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
     if (
         moneyTransactions.length === 0
@@ -1268,110 +1792,125 @@ function renderMoneyHistory() {
 
     container.innerHTML =
         moneyTransactions
-            .map(transaction => {
+            .map(
+                transaction => {
 
-                const amount =
-                    Number(
-                        transaction.amount
-                    ) || 0;
+                    const amount =
+                        Number(
+                            transaction.amount
+                        ) || 0;
 
-                const positive =
-                    amount > 0;
+                    const positive =
+                        amount > 0;
 
-                const date =
-                    transaction.transaction_date
-                        ? new Date(
-                            transaction.transaction_date
-                        ).toLocaleDateString(
-                            "fr-FR"
-                        )
-                        : "—";
+                    const date =
+                        transaction.transaction_date
+                            ? new Date(
+                                transaction.transaction_date
+                            ).toLocaleDateString(
+                                "fr-FR"
+                            )
+                            : "—";
 
-                const account =
-                    getAccountLabel(
-                        transaction.account_type
-                    );
+                    const account =
+                        getAccountLabel(
+                            transaction.account_type
+                        );
 
-                const type =
-                    getTransactionLabel(
-                        transaction.transaction_type
-                    );
+                    const type =
+                        getTransactionLabel(
+                            transaction.transaction_type
+                        );
 
-                return `
-                    <div class="grade-row">
+                    return `
+                        <div class="grade-row">
 
-                        <strong>
-                            ${escapeHTML(
-                                transaction.description ||
-                                type
-                            )}
-                        </strong>
+                            <strong>
+                                ${escapeHTML(
+                                    transaction.description ||
+                                    type
+                                )}
+                            </strong>
 
-                        <div>
-                            ${type}
+                            <div>
+                                ${type}
+                            </div>
+
+                            <div>
+                                ${account}
+                            </div>
+
+                            <div>
+                                ${date}
+                            </div>
+
+                            <div class="grade-value">
+                                ${positive ? "+" : ""}
+                                ${amount.toLocaleString(
+                                    "fr-FR",
+                                    {
+                                        minimumFractionDigits:
+                                            0,
+                                        maximumFractionDigits:
+                                            2
+                                    }
+                                )}
+                                DH
+                            </div>
+
+                            <button
+                                class="delete-grade"
+                                data-delete-money="${transaction.id}"
+                            >
+                                Supprimer
+                            </button>
+
                         </div>
+                    `;
 
-                        <div>
-                            ${account}
-                        </div>
-
-                        <div>
-                            ${date}
-                        </div>
-
-                        <div class="grade-value">
-                            ${positive ? "+" : ""}
-                            ${amount.toLocaleString(
-                                "fr-FR",
-                                {
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 2
-                                }
-                            )}
-                            DH
-                        </div>
-
-                        <button
-                            class="delete-grade"
-                            data-delete-money="${transaction.id}"
-                        >
-                            Supprimer
-                        </button>
-
-                    </div>
-                `;
-
-            })
+                }
+            )
             .join("");
 
     document
         .querySelectorAll(
             "[data-delete-money]"
         )
-        .forEach(button => {
+        .forEach(
+            button => {
 
-            button.addEventListener(
-                "click",
-                () => deleteMoneyTransaction(
-                    button.dataset.deleteMoney
-                )
-            );
+                button.addEventListener(
+                    "click",
+                    () =>
+                        deleteMoneyTransaction(
+                            button.dataset.deleteMoney
+                        )
+                );
 
-        });
+            }
+        );
 }
 
 
-function getAccountLabel(account) {
+function getAccountLabel(
+    account
+) {
 
-    if (account === "bank") {
+    if (
+        account === "bank"
+    ) {
         return "Banque";
     }
 
-    if (account === "savings") {
+    if (
+        account === "savings"
+    ) {
         return "Épargne";
     }
 
-    if (account === "cash") {
+    if (
+        account === "cash"
+    ) {
         return "Espèces";
     }
 
@@ -1379,25 +1918,37 @@ function getAccountLabel(account) {
 }
 
 
-function getTransactionLabel(type) {
+function getTransactionLabel(
+    type
+) {
 
-    if (type === "grade") {
+    if (
+        type === "grade"
+    ) {
         return "Note";
     }
 
-    if (type === "encouragement") {
+    if (
+        type === "encouragement"
+    ) {
         return "Encouragement";
     }
 
-    if (type === "observation") {
+    if (
+        type === "observation"
+    ) {
         return "Observation";
     }
 
-    if (type === "manual") {
+    if (
+        type === "manual"
+    ) {
         return "Manuel";
     }
 
-    if (type === "initial_balance") {
+    if (
+        type === "initial_balance"
+    ) {
         return "Solde initial";
     }
 
@@ -1416,7 +1967,9 @@ function openMoneyModal() {
             "money-modal"
         );
 
-    if (!moneyModal) return;
+    if (!moneyModal) {
+        return;
+    }
 
     moneyModal.classList.remove(
         "hidden"
@@ -1428,7 +1981,8 @@ function openMoneyModal() {
         );
 
     if (message) {
-        message.textContent = "";
+        message.textContent =
+            "";
     }
 }
 
@@ -1440,7 +1994,9 @@ function closeMoneyModal() {
             "money-modal"
         );
 
-    if (!moneyModal) return;
+    if (!moneyModal) {
+        return;
+    }
 
     moneyModal.classList.add(
         "hidden"
@@ -1489,7 +2045,9 @@ async function saveMoney() {
         "manual";
 
     let description =
-        descriptionInput?.value.trim();
+        descriptionInput
+            ?.value
+            .trim();
 
     if (
         type === "encouragement"
@@ -1535,12 +2093,17 @@ async function saveMoney() {
         error
     } =
         await supabaseClient
-            .from("money_transactions")
+            .from(
+                "money_transactions"
+            )
             .insert({
-                user_id: currentUser.id,
+                user_id:
+                    currentUser.id,
                 amount,
-                account_type: account,
-                transaction_type: type,
+                account_type:
+                    account,
+                transaction_type:
+                    type,
                 description,
                 transaction_date:
                     new Date()
@@ -1570,11 +2133,13 @@ async function saveMoney() {
     }
 
     if (amountInput) {
-        amountInput.value = "";
+        amountInput.value =
+            "";
     }
 
     if (descriptionInput) {
-        descriptionInput.value = "";
+        descriptionInput.value =
+            "";
     }
 
     await loadMoney();
@@ -1599,15 +2164,22 @@ async function deleteMoneyTransaction(
             "Supprimer cette opération ?"
         );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+        return;
+    }
 
     const {
         error
     } =
         await supabaseClient
-            .from("money_transactions")
+            .from(
+                "money_transactions"
+            )
             .delete()
-            .eq("id", id)
+            .eq(
+                "id",
+                id
+            )
             .eq(
                 "user_id",
                 currentUser.id
@@ -1640,7 +2212,9 @@ function openBalanceModal() {
             "balance-modal"
         );
 
-    if (!balanceModal) return;
+    if (!balanceModal) {
+        return;
+    }
 
     balanceModal.classList.remove(
         "hidden"
@@ -1657,7 +2231,9 @@ function closeBalanceModal() {
             "balance-modal"
         );
 
-    if (!balanceModal) return;
+    if (!balanceModal) {
+        return;
+    }
 
     balanceModal.classList.add(
         "hidden"
@@ -1708,7 +2284,9 @@ function loadInitialBalanceInputs() {
 }
 
 
-function getInitialBalance(account) {
+function getInitialBalance(
+    account
+) {
 
     const transaction =
         moneyTransactions.find(
@@ -1728,6 +2306,7 @@ function getInitialBalance(account) {
 async function saveBalances() {
 
     const values = {
+
         bank:
             Number(
                 document.getElementById(
@@ -1756,7 +2335,9 @@ async function saveBalances() {
         "cash"
     ];
 
-    for (const account of accounts) {
+    for (
+        const account of accounts
+    ) {
 
         const existing =
             moneyTransactions.find(
@@ -1889,7 +2470,8 @@ async function loadTodos() {
         return;
     }
 
-    todos = data || [];
+    todos =
+        data || [];
 }
 
 
@@ -1928,10 +2510,172 @@ function showTodo() {
         </section>
     `;
 
+    const list =
+        document.getElementById(
+            "todo-list"
+        );
+
+    function renderTodos() {
+
+        if (!list) {
+            return;
+        }
+
+        if (todos.length === 0) {
+
+            list.innerHTML = `
+                <div class="empty">
+
+                    <div class="empty-icon">
+                        ✓
+                    </div>
+
+                    <h3>
+                        Rien à faire
+                    </h3>
+
+                    <p>
+                        Ajoute un devoir ou une tâche.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+        list.innerHTML =
+            todos
+                .map(
+                    todo => {
+
+                        const date =
+                            todo.due_at
+                                ? new Date(
+                                    todo.due_at
+                                )
+                                : null;
+
+                        const dateText =
+                            date
+                                ? date.toLocaleString(
+                                    "fr-FR",
+                                    {
+                                        dateStyle:
+                                            "short",
+                                        timeStyle:
+                                            "short"
+                                    }
+                                )
+                                : "Sans date";
+
+                        const overdue =
+                            date &&
+                            !todo.completed &&
+                            date < new Date();
+
+                        return `
+                            <div
+                                class="todo-row ${
+                                    todo.completed
+                                        ? "completed"
+                                        : ""
+                                } ${
+                                    overdue
+                                        ? "overdue"
+                                        : ""
+                                }"
+                            >
+
+                                <div class="todo-main">
+
+                                    <input
+                                        type="checkbox"
+                                        data-todo-toggle="${todo.id}"
+                                        ${
+                                            todo.completed
+                                                ? "checked"
+                                                : ""
+                                        }
+                                    >
+
+                                    <div>
+
+                                        <strong>
+                                            ${escapeHTML(
+                                                todo.title
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            ${
+                                                overdue
+                                                    ? "En retard · "
+                                                    : ""
+                                            }${dateText}
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                                <button
+                                    class="delete-grade"
+                                    data-delete-todo="${todo.id}"
+                                >
+                                    Supprimer
+                                </button>
+
+                            </div>
+                        `;
+                    }
+                )
+                .join("");
+
+        document
+            .querySelectorAll(
+                "[data-todo-toggle]"
+            )
+            .forEach(
+                checkbox => {
+
+                    checkbox.addEventListener(
+                        "change",
+                        () =>
+                            toggleTodo(
+                                checkbox.dataset.todoToggle,
+                                checkbox.checked
+                            )
+                    );
+
+                }
+            );
+
+        document
+            .querySelectorAll(
+                "[data-delete-todo]"
+            )
+            .forEach(
+                button => {
+
+                    button.addEventListener(
+                        "click",
+                        () =>
+                            deleteTodo(
+                                button.dataset.deleteTodo
+                            )
+                    );
+
+                }
+            );
+    }
+
     renderTodos();
 
     document
-        .getElementById("add-todo")
+        .getElementById(
+            "add-todo"
+        )
         ?.addEventListener(
             "click",
             addTodo
@@ -1939,160 +2683,29 @@ function showTodo() {
 }
 
 
-function renderTodos() {
-
-    const list =
-        document.getElementById(
-            "todo-list"
-        );
-
-    if (!list) return;
-
-    if (todos.length === 0) {
-
-        list.innerHTML = `
-            <div class="empty">
-
-                <div class="empty-icon">
-                    ✓
-                </div>
-
-                <h3>
-                    Rien à faire
-                </h3>
-
-                <p>
-                    Ajoute un devoir ou une révision.
-                </p>
-
-            </div>
-        `;
-
-        return;
-    }
-
-    list.innerHTML =
-        todos
-            .map(todo => {
-
-                const due =
-                    todo.due_at
-                        ? new Date(
-                            todo.due_at
-                        ).toLocaleString(
-                            "fr-FR"
-                        )
-                        : "Sans date";
-
-                const overdue =
-                    todo.due_at &&
-                    new Date(
-                        todo.due_at
-                    ) < new Date() &&
-                    !todo.completed;
-
-                return `
-                    <div
-                        class="grade-row
-                        ${todo.completed ? "todo-completed" : ""}
-                        ${overdue ? "todo-overdue" : ""}"
-                    >
-
-                        <strong>
-                            ${escapeHTML(
-                                todo.title
-                            )}
-                        </strong>
-
-                        <div>
-                            ${overdue
-                                ? "En retard"
-                                : due}
-                        </div>
-
-                        <div>
-                            ${todo.completed
-                                ? "Terminé"
-                                : "À faire"}
-                        </div>
-
-                        <button
-                            class="delete-grade"
-                            data-toggle-todo="${todo.id}"
-                        >
-                            ${todo.completed
-                                ? "Rouvrir"
-                                : "Terminé"}
-                        </button>
-
-                        <button
-                            class="delete-grade"
-                            data-delete-todo="${todo.id}"
-                        >
-                            Supprimer
-                        </button>
-
-                    </div>
-                `;
-
-            })
-            .join("");
-
-    document
-        .querySelectorAll(
-            "[data-toggle-todo]"
-        )
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () =>
-                    toggleTodo(
-                        button.dataset.toggleTodo
-                    )
-            );
-
-        });
-
-    document
-        .querySelectorAll(
-            "[data-delete-todo]"
-        )
-        .forEach(button => {
-
-            button.addEventListener(
-                "click",
-                () =>
-                    deleteTodo(
-                        button.dataset.deleteTodo
-                    )
-            );
-
-        });
-}
-
-
 async function addTodo() {
 
     const title =
         prompt(
-            "Quel est le devoir ou la tâche ?"
+            "Nom de la tâche :"
         );
 
-    if (!title) return;
+    if (!title?.trim()) {
+        return;
+    }
 
-    const due =
+    const dateText =
         prompt(
-            "Date et heure limite ?\nExemple : 25/09/2026 18:00\nTu peux laisser vide."
+            "Date et heure (ex : 25/09/2026 18:00) — laisse vide si aucune date :"
         );
 
     let dueAt = null;
 
-    if (due) {
+    if (dateText?.trim()) {
 
         const parsed =
             parseFrenchDateTime(
-                due
+                dateText.trim()
             );
 
         if (!parsed) {
@@ -2140,16 +2753,10 @@ async function addTodo() {
 }
 
 
-async function toggleTodo(id) {
-
-    const todo =
-        todos.find(
-            item =>
-                String(item.id) ===
-                String(id)
-        );
-
-    if (!todo) return;
+async function toggleTodo(
+    id,
+    completed
+) {
 
     const {
         error
@@ -2157,8 +2764,7 @@ async function toggleTodo(id) {
         await supabaseClient
             .from("todos")
             .update({
-                completed:
-                    !todo.completed
+                completed
             })
             .eq(
                 "id",
@@ -2185,14 +2791,17 @@ async function toggleTodo(id) {
 }
 
 
-async function deleteTodo(id) {
+async function deleteTodo(
+    id
+) {
 
-    const confirmed =
-        confirm(
+    if (
+        !confirm(
             "Supprimer cette tâche ?"
-        );
-
-    if (!confirmed) return;
+        )
+    ) {
+        return;
+    }
 
     const {
         error
@@ -2225,7 +2834,9 @@ async function deleteTodo(id) {
 }
 
 
-function parseFrenchDateTime(value) {
+function parseFrenchDateTime(
+    value
+) {
 
     const match =
         value.match(
@@ -2246,10 +2857,10 @@ function parseFrenchDateTime(value) {
         Number(match[3]);
 
     const hour =
-        Number(match[4] || 23);
+        Number(match[4] || 0);
 
     const minute =
-        Number(match[5] || 59);
+        Number(match[5] || 0);
 
     const date =
         new Date(
@@ -2258,6 +2869,7 @@ function parseFrenchDateTime(value) {
             day,
             hour,
             minute,
+            0,
             0
         );
 
@@ -2282,12 +2894,14 @@ function showBrevet() {
     const average =
         document.getElementById(
             "average-card"
-        )?.textContent || "—";
+        )?.textContent ||
+        "—";
 
     const target =
         localStorage.getItem(
             `brevettrack_target_${currentUser.id}`
-        ) || "—";
+        ) ||
+        "—";
 
     main.innerHTML = `
 
@@ -2416,9 +3030,12 @@ function showCalendar() {
         new Date().toLocaleDateString(
             "fr-FR",
             {
-                weekday: "long",
-                day: "numeric",
-                month: "long"
+                weekday:
+                    "long",
+                day:
+                    "numeric",
+                month:
+                    "long"
             }
         );
 
@@ -2514,7 +3131,9 @@ function showNotes() {
             "notes-page-list"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
     if (grades.length === 0) {
 
@@ -2540,60 +3159,63 @@ function showNotes() {
 
         container.innerHTML =
             grades
-                .map(grade => {
+                .map(
+                    grade => {
 
-                    const reward =
-                        getGradeReward(
-                            grade.grade
-                        );
+                        const reward =
+                            getGradeReward(
+                                grade.grade
+                            );
 
-                    return `
-                        <div class="grade-row">
+                        return `
+                            <div class="grade-row">
 
-                            <strong>
-                                ${escapeHTML(
-                                    grade.subject
-                                )}
-                            </strong>
+                                <strong>
+                                    ${escapeHTML(
+                                        grade.subject
+                                    )}
+                                </strong>
 
-                            <div class="grade-value">
-                                ${grade.grade}/20
+                                <div class="grade-value">
+                                    ${grade.grade}/20
+                                </div>
+
+                                <div>
+                                    Coef.
+                                    ${grade.coefficient || 1}
+                                </div>
+
+                                <div>
+                                    ${escapeHTML(
+                                        grade.grade_type ||
+                                        "Note"
+                                    )}
+                                </div>
+
+                                <div>
+                                    ${
+                                        reward > 0
+                                            ? "+" +
+                                              reward +
+                                              " DH"
+                                            : reward < 0
+                                                ? reward +
+                                                  " DH"
+                                                : "0 DH"
+                                    }
+                                </div>
+
+                                <button
+                                    class="delete-grade"
+                                    data-delete-grade="${grade.id}"
+                                >
+                                    Supprimer
+                                </button>
+
                             </div>
-
-                            <div>
-                                Coef.
-                                ${grade.coefficient || 1}
-                            </div>
-
-                            <div>
-                                ${escapeHTML(
-                                    grade.grade_type ||
-                                    "Note"
-                                )}
-                            </div>
-
-                            <div>
-                                ${reward > 0
-                                    ? "+" +
-                                      reward +
-                                      " DH"
-                                    : reward < 0
-                                        ? reward +
-                                          " DH"
-                                        : "0 DH"}
-                            </div>
-
-                            <button
-                                class="delete-grade"
-                                data-delete-grade="${grade.id}"
-                            >
-                                Supprimer
-                            </button>
-
-                        </div>
-                    `;
-
-                })
+                        `;
+                    }
+                )
                 .join("");
     }
 
@@ -2610,17 +3232,19 @@ function showNotes() {
         .querySelectorAll(
             "[data-delete-grade]"
         )
-        .forEach(button => {
+        .forEach(
+            button => {
 
-            button.addEventListener(
-                "click",
-                () =>
-                    deleteGrade(
-                        button.dataset.deleteGrade
-                    )
-            );
+                button.addEventListener(
+                    "click",
+                    () =>
+                        deleteGrade(
+                            button.dataset.deleteGrade
+                        )
+                );
 
-        });
+            }
+        );
 }
 
 
@@ -2635,55 +3259,74 @@ function setupNavigation() {
             ".nav-item"
         );
 
-    buttons.forEach(button => {
+    buttons.forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                buttons.forEach(
-                    btn =>
-                        btn.classList.remove(
-                            "active"
-                        )
-                );
+                    buttons.forEach(
+                        btn =>
+                            btn.classList.remove(
+                                "active"
+                            )
+                    );
 
-                button.classList.add(
-                    "active"
-                );
+                    button.classList.add(
+                        "active"
+                    );
 
-                const page =
-                    button.dataset.page;
+                    const page =
+                        button.dataset.page;
 
-                if (page === "dashboard") {
-                    location.reload();
+                    if (
+                        page === "dashboard"
+                    ) {
+                        showDashboard();
+                    }
+
+                    if (
+                        page === "notes"
+                    ) {
+                        showNotes();
+                    }
+
+                    if (
+                        page === "todo"
+                    ) {
+                        showTodo();
+                    }
+
+                    if (
+                        page === "brevet"
+                    ) {
+                        showBrevet();
+                    }
+
+                    if (
+                        page === "calendar"
+                    ) {
+                        showCalendar();
+                    }
+
+                    if (
+                        page === "money"
+                    ) {
+                        showMoney();
+                    }
+
+                    closeMobileMenu();
                 }
+            );
+        }
+    );
+}
 
-                if (page === "notes") {
-                    showNotes();
-                }
 
-                if (page === "todo") {
-                    showTodo();
-                }
+function showDashboard() {
 
-                if (page === "brevet") {
-                    showBrevet();
-                }
-
-                if (page === "calendar") {
-                    showCalendar();
-                }
-
-                if (page === "money") {
-                    showMoney();
-                }
-
-                closeMobileMenu();
-            }
-        );
-
-    });
+    location.reload();
 }
 
 
@@ -2800,13 +3443,6 @@ function setupButtons() {
 
 function updateManualMoneyPreview() {
 
-    const amount =
-        Number(
-            document.getElementById(
-                "money-amount"
-            )?.value
-        );
-
     const type =
         document.getElementById(
             "money-type"
@@ -2817,18 +3453,34 @@ function updateManualMoneyPreview() {
             "money-amount"
         );
 
-    if (!input) return;
+    if (!input) {
+        return;
+    }
 
-    if (type === "encouragement") {
-        input.value = "100";
-        input.disabled = true;
+    if (
+        type === "encouragement"
+    ) {
+
+        input.value =
+            "100";
+
+        input.disabled =
+            true;
+
     } else if (
         type === "observation"
     ) {
-        input.value = "-150";
-        input.disabled = true;
+
+        input.value =
+            "-150";
+
+        input.disabled =
+            true;
+
     } else {
-        input.disabled = false;
+
+        input.disabled =
+            false;
     }
 }
 
@@ -2844,7 +3496,9 @@ function loadTarget() {
             `brevettrack_target_${currentUser.id}`
         );
 
-    if (!target) return;
+    if (!target) {
+        return;
+    }
 
     const targetValue =
         Number(target);
@@ -2881,12 +3535,16 @@ function loadTarget() {
 
     const average =
         Number(
-            document.getElementById(
-                "average-card"
-            )?.textContent
+            document
+                .getElementById(
+                    "average-card"
+                )
+                ?.textContent
         );
 
-    updateProgress(average);
+    updateProgress(
+        average
+    );
 }
 
 
@@ -2894,9 +3552,11 @@ function saveTarget() {
 
     const target =
         Number(
-            document.getElementById(
-                "target-input"
-            )?.value
+            document
+                .getElementById(
+                    "target-input"
+                )
+                ?.value
         );
 
     if (
@@ -2939,16 +3599,22 @@ function saveTarget() {
 
     const average =
         Number(
-            document.getElementById(
-                "average-card"
-            )?.textContent
+            document
+                .getElementById(
+                    "average-card"
+                )
+                ?.textContent
         );
 
-    updateProgress(average);
+    updateProgress(
+        average
+    );
 }
 
 
-function updateProgress(average) {
+function updateProgress(
+    average
+) {
 
     const target =
         Number(
@@ -2987,7 +3653,8 @@ function updateProgress(average) {
 
     const percentage =
         Math.min(
-            (average / target) * 100,
+            (average / target) *
+                100,
             100
         );
 
@@ -2998,7 +3665,9 @@ function updateProgress(average) {
 
     if (progressText) {
         progressText.textContent =
-            `${Math.round(percentage)}%`;
+            `${Math.round(
+                percentage
+            )}%`;
     }
 }
 
@@ -3037,7 +3706,6 @@ function setupMobileMenu() {
                 overlay?.classList.toggle(
                     "visible"
                 );
-
             }
         );
     }
@@ -3079,7 +3747,10 @@ function closeMobileMenu() {
 async function registerServiceWorker() {
 
     if (
-        !("serviceWorker" in navigator)
+        !(
+            "serviceWorker" in
+            navigator
+        )
     ) {
         return;
     }
@@ -3125,8 +3796,7 @@ async function logout() {
         return;
     }
 
-    window.location.href =
-        "index.html";
+    showLoginScreen();
 }
 
 
@@ -3134,9 +3804,13 @@ async function logout() {
 // UTILITAIRES
 // =========================================================
 
-function escapeHTML(value) {
+function escapeHTML(
+    value
+) {
 
-    return String(value ?? "")
+    return String(
+        value ?? ""
+    )
         .replace(
             /&/g,
             "&amp;"
@@ -3161,7 +3835,7 @@ function escapeHTML(value) {
 
 
 // =========================================================
-// FERMETURE MODALES EN CLIQUANT À L'EXTÉRIEUR
+// FERMETURE MODALES
 // =========================================================
 
 document.addEventListener(
@@ -3178,6 +3852,5 @@ document.addEventListener(
                 "hidden"
             );
         }
-
     }
 );
